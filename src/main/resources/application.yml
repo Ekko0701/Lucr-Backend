@@ -1,0 +1,42 @@
+spring:
+  application:
+    name: lucr
+  
+  # PostgreSQL 데이터베이스 설정
+  datasource:
+    url: jdbc:postgresql://localhost:5432/lucr_db
+    username: charlie0701
+    password: alpha5059
+    driver-class-name: org.postgresql.Driver
+  
+  # JPA 설정
+  jpa:
+    hibernate:
+      ddl-auto: update  # 자동으로 테이블 생성/수정
+    show-sql: true      # SQL 쿼리 콘솔 출력
+    properties:
+      hibernate:
+        format_sql: true  # SQL 포맷팅
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    open-in-view: false
+
+# 서버 설정
+server:
+  port: 8081
+
+# Actuator 설정 (헬스 체크)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+# 로깅 설정
+logging:
+  level:
+    com.lucr: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
