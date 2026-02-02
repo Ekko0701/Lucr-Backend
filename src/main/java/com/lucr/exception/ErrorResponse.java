@@ -27,7 +27,6 @@ public class ErrorResponse {
     
     @Builder.Default
     private LocalDateTime timestamp = LocalDateTime.now();
-    
     @Builder.Default
     private List<FieldError> errors = new ArrayList<>();
 
