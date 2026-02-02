@@ -96,28 +96,15 @@ public class NewsDetailResponse {
      */
     private LocalDateTime updatedAt;
     
-    // ========== 추가 메타데이터 ==========
-    
+    // ========== 계산 속성 (Computed Properties) ==========
+
     /**
      * 본문 길이 (글자 수)
-     * 
-     * 프론트엔드에서 "예상 읽기 시간" 계산에 사용 가능
      */
-    private Integer contentLength;
-    
-    /**
-     * 감정 분석 결과 (한글)
-     */
-    private String sentimentLabel;
-    
-    /**
-     * 예상 읽기 시간 (분)
-     * 
-     * 일반적으로 사람은 분당 200-250자 읽음
-     * contentLength / 200 으로 계산
-     */
-    private Integer estimatedReadingTime;
-    
+    public Integer getContentLength() {
+        return content != null ? content.length() : 0;
+    }
+
     /**
      * 감정 분석 결과를 한글로 반환
      */
@@ -125,47 +112,27 @@ public class NewsDetailResponse {
         if (sentimentScore == null) {
             return "분석 전";
         }
-        
+
         double score = sentimentScore.doubleValue();
-        
+
         if (score >= 0.7) return "매우 긍정적";
         if (score >= 0.3) return "긍정적";
         if (score >= -0.3) return "중립";
         if (score >= -0.7) return "부정적";
         return "매우 부정적";
     }
-    
+
     /**
-     * 예상 읽기 시간 계산
+     * 예상 읽기 시간 계산 (분)
+     *
+     * 일반적으로 사람은 분당 200-250자 읽음
      */
     public Integer getEstimatedReadingTime() {
-        if (content == null || content.isEmpty()) {
+        int length = getContentLength();
+        if (length == 0) {
             return 0;
         }
-        // 분당 200자 기준
-        int minutes = content.length() / 200;
+        int minutes = length / 200;
         return minutes < 1 ? 1 : minutes;
     }
-    
-    /**
-     * Builder 패턴 사용 예시
-     * 
-     * NewsDetailResponse response = NewsDetailResponse.builder()
-     *     .id(news.getId())
-     *     .title(news.getTitle())
-     *     .content(news.getContent())
-     *     .source(news.getSource())
-     *     .url(news.getUrl())
-     *     .viewCount(news.getViewCount())
-     *     .isHighView(news.getIsHighView())
-     *     .sentimentScore(news.getSentimentScore())
-     *     .publishedAt(news.getPublishedAt())
-     *     .crawledAt(news.getCrawledAt())
-     *     .createdAt(news.getCreatedAt())
-     *     .updatedAt(news.getUpdatedAt())
-     *     .contentLength(news.getContent().length())
-     *     .sentimentLabel(getSentimentLabel())
-     *     .estimatedReadingTime(getEstimatedReadingTime())
-     *     .build();
-     */
 }

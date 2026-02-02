@@ -121,17 +121,7 @@ public class NewsMapper {
      * @return NewsDetailResponse DTO
      */
     public NewsDetailResponse toDetailResponse(News entity) {
-        // 감정 분석 라벨
-        String sentimentLabel = getSentimentLabel(entity.getSentimentScore());
-        
-        // 본문 길이
-        Integer contentLength = entity.getContent() != null 
-                ? entity.getContent().length() 
-                : 0;
-        
-        // 예상 읽기 시간 (분당 200자 기준)
-        Integer estimatedReadingTime = calculateReadingTime(contentLength);
-        
+        // contentLength, sentimentLabel, estimatedReadingTime은 DTO에서 자동 계산
         return NewsDetailResponse.builder()
                 .id(entity.getId())
                 .title(entity.getTitle())
@@ -145,9 +135,6 @@ public class NewsMapper {
                 .crawledAt(entity.getCrawledAt())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
-                .contentLength(contentLength)
-                .sentimentLabel(sentimentLabel)
-                .estimatedReadingTime(estimatedReadingTime)
                 .build();
     }
     
@@ -171,52 +158,6 @@ public class NewsMapper {
         }
         
         return content.substring(0, 100) + "...";
-    }
-    
-    /**
-     * 감정 점수를 한글 라벨로 변환
-     * 
-     * @param sentimentScore 감정 점수 (-1.0 ~ 1.0)
-     * @return 한글 라벨
-     */
-    private String getSentimentLabel(java.math.BigDecimal sentimentScore) {
-        if (sentimentScore == null) {
-            return "분석 전";
-        }
-        
-        double score = sentimentScore.doubleValue();
-        
-        if (score >= 0.7) {
-            return "매우 긍정적";
-        } else if (score >= 0.3) {
-            return "긍정적";
-        } else if (score >= -0.3) {
-            return "중립";
-        } else if (score >= -0.7) {
-            return "부정적";
-        } else {
-            return "매우 부정적";
-        }
-    }
-    
-    /**
-     * 예상 읽기 시간 계산
-     * 
-     * 일반적으로 사람은 분당 200자를 읽음
-     * 
-     * @param contentLength 본문 길이
-     * @return 예상 읽기 시간 (분)
-     */
-    private Integer calculateReadingTime(Integer contentLength) {
-        if (contentLength == null || contentLength == 0) {
-            return 0;
-        }
-        
-        // 분당 200자 기준으로 계산
-        int minutes = contentLength / 200;
-        
-        // 최소 1분
-        return minutes < 1 ? 1 : minutes;
     }
     
     /**

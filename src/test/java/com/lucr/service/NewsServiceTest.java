@@ -104,6 +104,7 @@ class NewsServiceTest {
                 .build();
 
         // 테스트용 DetailResponse
+        // contentLength, sentimentLabel, estimatedReadingTime은 DTO에서 자동 계산
         detailResponse = NewsDetailResponse.builder()
                 .id(testId)
                 .title("삼성전자 주가 상승")
@@ -116,9 +117,6 @@ class NewsServiceTest {
                 .publishedAt(LocalDateTime.now())
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
-                .contentLength(25)
-                .sentimentLabel("매우 긍정적")
-                .estimatedReadingTime(1)
                 .build();
 
         // 테스트용 NewsResponse
