@@ -8,9 +8,11 @@ import com.lucr.dto.response.NewsDetailResponse;
 import com.lucr.dto.response.NewsResponse;
 import com.lucr.dto.response.PageResponse;
 import com.lucr.service.NewsService;
+import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
@@ -81,6 +83,7 @@ public class NewsController {
      */
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<NewsResponse>>> getAllNews(
+            @ParameterObject
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC)
             Pageable pageable
     ) {
@@ -139,6 +142,7 @@ public class NewsController {
      */
     @GetMapping("/popular")
     public ResponseEntity<ApiResponse<PageResponse<NewsResponse>>> getPopularNews(
+            @ParameterObject
             @PageableDefault(size = 20) Pageable pageable
     ) {
         log.info("인기 뉴스 조회 요청: page={}, size={}", pageable.getPageNumber(), pageable.getPageSize());
@@ -157,6 +161,7 @@ public class NewsController {
      */
     @GetMapping("/recent")
     public ResponseEntity<ApiResponse<PageResponse<NewsResponse>>> getRecentNews(
+            @ParameterObject
             @PageableDefault(size = 20) Pageable pageable
     ) {
         log.info("최신 뉴스 조회 요청: page={}, size={}", pageable.getPageNumber(), pageable.getPageSize());
@@ -179,6 +184,7 @@ public class NewsController {
     @GetMapping("/search")
     public ResponseEntity<ApiResponse<PageResponse<NewsResponse>>> searchByKeyword(
             @RequestParam String keyword,
+            @ParameterObject
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC)
             Pageable pageable
     ) {
@@ -219,6 +225,7 @@ public class NewsController {
     @GetMapping("/source/{source}")
     public ResponseEntity<ApiResponse<PageResponse<NewsResponse>>> getNewsBySource(
             @PathVariable String source,
+            @ParameterObject
             @PageableDefault(size = 20, sort = "publishedAt", direction = Sort.Direction.DESC)
             Pageable pageable
     ) {
