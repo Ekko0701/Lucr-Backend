@@ -22,6 +22,7 @@ public enum ErrorCode {
     // 404 Not Found
     RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "E404001", "요청한 리소스를 찾을 수 없습니다."),
     NEWS_NOT_FOUND(HttpStatus.NOT_FOUND, "E404002", "뉴스를 찾을 수 없습니다."),
+    CRAWL_JOB_NOT_FOUND(HttpStatus.NOT_FOUND, "E404003", "크롤링 작업을 찾을 수 없습니다."),
     
     // 409 Conflict
     DUPLICATE_RESOURCE(HttpStatus.CONFLICT, "E409001", "이미 존재하는 리소스입니다."),

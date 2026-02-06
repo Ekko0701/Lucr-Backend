@@ -19,6 +19,12 @@ spring:
         format_sql: true  # SQL 포맷팅
         dialect: org.hibernate.dialect.PostgreSQLDialect
     open-in-view: false
+  # RabbitMQ 설정
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: charlie0701
+    password: alpha5059
 
 # 서버 설정
 server:
