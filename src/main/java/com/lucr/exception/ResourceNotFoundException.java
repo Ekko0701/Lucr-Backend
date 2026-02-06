@@ -25,4 +25,14 @@ public class ResourceNotFoundException extends BusinessException {
                 "뉴스를 찾을 수 없습니다: " + id
         );
     }
+
+    /**
+     * 크롤링 작업을 찾을 수 없는 경우
+     */
+    public static ResourceNotFoundException crawlJobNotFound(String id) {
+        return new ResourceNotFoundException(
+                ErrorCode.CRAWL_JOB_NOT_FOUND,
+                "크롤링 작업을 찾을 수 없습니다: " + id
+        );
+    }
 }
