@@ -17,7 +17,8 @@ spring:
     properties:
       hibernate:
         format_sql: true  # SQL 포맷팅
-        dialect: org.hibernate.dialect.PostgreSQLDialect
+        # dialect 설정 제거 - Hibernate 7.x가 JDBC URL 기반으로 자동 감지
+        # (PostgreSQL → PostgreSQLDialect, H2 → H2Dialect)
     open-in-view: false
   # RabbitMQ 설정
   rabbitmq:

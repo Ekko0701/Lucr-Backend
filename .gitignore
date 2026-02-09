@@ -150,6 +150,10 @@ yarn.lock
 docker-compose.override.yml
 .dockerignore
 
+# ========== AI/개발 도구 설정 ==========
+.claude/
+.cursor/
+
 # ========== 기타 ==========
 # 로컬 개발용 메모
 TODO.txt

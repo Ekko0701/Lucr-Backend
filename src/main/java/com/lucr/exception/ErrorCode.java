@@ -27,6 +27,7 @@ public enum ErrorCode {
     // 409 Conflict
     DUPLICATE_RESOURCE(HttpStatus.CONFLICT, "E409001", "이미 존재하는 리소스입니다."),
     DUPLICATE_NEWS_URL(HttpStatus.CONFLICT, "E409002", "이미 존재하는 뉴스 URL입니다."),
+    CRAWL_JOB_ALREADY_RUNNING(HttpStatus.CONFLICT, "E409003", "이미 실행 중인 크롤링 작업이 있습니다."),
     
     // 500 Internal Server Error
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "E500001", "서버 내부 오류가 발생했습니다."),

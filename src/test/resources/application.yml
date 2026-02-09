@@ -1,0 +1,68 @@
+# ======================================================
+# 테스트 전용 설정 (src/test/resources/application.yml)
+# ======================================================
+# 이 파일은 src/main/resources/application.yml을 완전히 덮어씁니다.
+# 모든 테스트(@SpringBootTest, @DataJpaTest, @WebMvcTest 등)에서 사용됩니다.
+#
+# 핵심 차이점:
+#   - PostgreSQL → H2 인메모리 DB (외부 DB 불필요)
+#   - RabbitMQ Listener 자동 시작 비활성화 (외부 MQ 불필요)
+#   - hibernate.dialect 미설정 → H2Dialect 자동 감지
+# ======================================================
+
+spring:
+  application:
+    name: lucr
+
+  # H2 인메모리 데이터베이스 (테스트용)
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=false
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+  # JPA 설정 (H2용)
+  jpa:
+    hibernate:
+      ddl-auto: create-drop  # 테스트마다 테이블 생성 후 삭제
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        # dialect 미설정 → H2Dialect 자동 감지
+    open-in-view: false
+
+  # RabbitMQ 설정 (테스트용)
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+    listener:
+      simple:
+        # @RabbitListener 자동 시작 비활성화
+        # 이렇게 하면 Bean은 생성되지만 실제 RabbitMQ 연결을 시도하지 않음
+        auto-startup: false
+
+# 서버 설정
+server:
+  port: 0  # 랜덤 포트 (테스트 간 충돌 방지)
+
+# Actuator 설정
+management:
+  health:
+    rabbit:
+      enabled: false  # RabbitMQ 건강 체크 비활성화
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+# 로깅
+logging:
+  level:
+    com.lucr: DEBUG
+    org.hibernate.SQL: DEBUG

@@ -7,6 +7,7 @@ import com.lucr.dto.request.NewsUpdateRequest;
 import com.lucr.dto.response.NewsDetailResponse;
 import com.lucr.dto.response.NewsResponse;
 import com.lucr.dto.response.PageResponse;
+import com.lucr.exception.DuplicateResourceException;
 import com.lucr.exception.ResourceNotFoundException;
 import com.lucr.service.NewsService;
 import org.junit.jupiter.api.BeforeEach;
@@ -306,6 +307,26 @@ class NewsControllerTest {
                     .andExpect(jsonPath("$.errors").isArray());
 
             then(newsService).should(times(0)).createNews(any());
+        }
+
+        @Test
+        @DisplayName("실패 - 중복 URL (409)")
+        void createNews_DuplicateUrl_Conflict() throws Exception {
+            // given - 동일한 URL의 뉴스가 이미 존재
+            given(newsService.createNews(any(NewsCreateRequest.class)))
+                    .willThrow(DuplicateResourceException.duplicateNewsUrl(createRequest.getUrl()));
+
+            // when & then
+            mockMvc.perform(
+                            post("/api/v1/news")
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(objectMapper.writeValueAsString(createRequest))
+                    )
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.code").value("E409002"))
+                    .andExpect(jsonPath("$.message").exists());
+
+            then(newsService).should(times(1)).createNews(any(NewsCreateRequest.class));
         }
     }
 
