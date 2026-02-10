@@ -1,14 +1,14 @@
 spring:
   application:
     name: lucr
-  
+
   # PostgreSQL 데이터베이스 설정
   datasource:
-    url: jdbc:postgresql://localhost:5432/lucr_db
-    username: charlie0701
-    password: alpha5059
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:lucr_db}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
-  
+
   # JPA 설정
   jpa:
     hibernate:
@@ -20,16 +20,17 @@ spring:
         # dialect 설정 제거 - Hibernate 7.x가 JDBC URL 기반으로 자동 감지
         # (PostgreSQL → PostgreSQLDialect, H2 → H2Dialect)
     open-in-view: false
+
   # RabbitMQ 설정
   rabbitmq:
-    host: localhost
-    port: 5672
-    username: charlie0701
-    password: alpha5059
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER}
+    password: ${RABBITMQ_PASSWORD}
 
 # 서버 설정
 server:
-  port: 8081
+  port: ${SERVER_PORT:8081}
 
 # Actuator 설정 (헬스 체크)
 management:
