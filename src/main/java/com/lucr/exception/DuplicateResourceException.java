@@ -25,4 +25,14 @@ public class DuplicateResourceException extends BusinessException {
                 "이미 존재하는 뉴스 URL입니다: " + url
         );
     }
+
+    /**
+     * 중복된 이메일인 경우
+     */
+    public static DuplicateResourceException duplicateEmail(String email) {
+        return new DuplicateResourceException(
+                ErrorCode.DUPLICATE_EMAIL,
+                "이미 사용 중인 이메일입니다: " + email
+        );
+    }
 }

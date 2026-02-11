@@ -35,4 +35,14 @@ public class ResourceNotFoundException extends BusinessException {
                 "크롤링 작업을 찾을 수 없습니다: " + id
         );
     }
+
+    /**
+     * 사용자를 찾을 수 없는 경우
+     */
+    public static ResourceNotFoundException userNotFound(String identifier) {
+        return new ResourceNotFoundException(
+                ErrorCode.USER_NOT_FOUND,
+                "사용자를 찾을 수 없습니다: " + identifier
+        );
+    }
 }
