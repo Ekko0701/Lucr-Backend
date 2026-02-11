@@ -48,3 +48,10 @@ logging:
     com.lucr: DEBUG
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+# JWT 설정
+jwt:
+  secret: ${JWT_SECRET}                          # 환경 변수로 관리 (최소 256비트 = 32바이트)
+  access-token-expiration: 1800000               # AccessToken 만료: 30분 (밀리초)
+  refresh-token-expiration: 604800000             # RefreshToken 만료: 7일 (밀리초)
+  issuer: lucr-api

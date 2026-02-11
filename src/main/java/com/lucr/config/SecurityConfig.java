@@ -1,55 +1,132 @@
 package com.lucr.config;
 
+import com.lucr.security.JwtAccessDeniedHandler;
+import com.lucr.security.JwtAuthenticationEntryPoint;
+import com.lucr.security.JwtAuthenticationFilter;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.ProviderManager;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 /**
- * Spring Security 설정
+ * Spring Security 설정 — JWT 인증 + 역할 기반 접근 제어 (RBAC)
  *
- * <p>현재 단계: 임시 permitAll 설정 (JWT 인증 구현 전)</p>
- *
- * <h3>역할</h3>
+ * <h3>변경 이력</h3>
  * <ul>
- *   <li>Spring Security의 기본 보안 정책을 덮어씀 (기본값: 모든 요청에 인증 필요)</li>
- *   <li>REST API에 맞는 보안 정책 적용 (CSRF 비활성화, Stateless 세션)</li>
- *   <li>PasswordEncoder Bean 등록 (회원가입 시 비밀번호 해싱에 사용)</li>
+ *   <li>[1-1] 임시 permitAll 설정 + PasswordEncoder Bean</li>
+ *   <li>[1-2] JWT 인증 필터 + 경로별 인가 규칙 + AuthenticationManager + 예외 핸들러</li>
  * </ul>
  *
- * <h3>왜 필요한가?</h3>
- * <p>spring-boot-starter-security 의존성이 classpath에 존재하면,
- * Spring Boot가 자동으로 모든 HTTP 엔드포인트에 Basic 인증을 적용합니다.
- * 이 설정이 없으면 모든 API가 401 Unauthorized를 반환합니다.
- * SecurityFilterChain Bean을 등록하면 기본 설정을 대체합니다.</p>
- *
- * <h3>JWT 인증 구현 후 변경 예정 사항 (1-2 작업)</h3>
+ * <h3>요청 흐름</h3>
  * <pre>
- * auth
- *     .requestMatchers("/api/v1/auth/**").permitAll()       // 회원가입, 로그인
- *     .requestMatchers("/api/v1/admin/**").hasRole("ADMIN") // 관리자 전용
- *     .anyRequest().authenticated()                          // 나머지는 인증 필요
+ * Client
+ *   → JwtAuthenticationFilter (Bearer 토큰 검증, SecurityContext 설정)
+ *   → SecurityFilterChain (경로별 인가 규칙 적용)
+ *       ├── 인증 실패 → JwtAuthenticationEntryPoint (401)
+ *       ├── 권한 부족 → JwtAccessDeniedHandler (403)
+ *       └── 통과     → Controller
+ * </pre>
+ *
+ * <h3>인가 규칙 (RBAC)</h3>
+ * <pre>
+ * 경로                        │ 접근 조건
+ * ────────────────────────────┼────────────────────
+ * /api/v1/auth/login          │ permitAll (인증 불필요)
+ * /api/v1/auth/register       │ permitAll
+ * /api/v1/auth/check-email    │ permitAll
+ * /api/v1/auth/refresh        │ permitAll
+ * /swagger-ui/**              │ permitAll (API 문서)
+ * /v3/api-docs/**             │ permitAll
+ * /actuator/**                │ permitAll (헬스 체크)
+ * /api/v1/admin/**            │ ADMIN 역할만
+ * GET /api/v1/news/**         │ 인증된 사용자 (USER + ADMIN)
+ * POST/PUT/DELETE /api/v1/news│ ADMIN 역할만
+ * 나머지 모든 경로              │ 인증 필요 (authenticated)
  * </pre>
  *
  * @author Ekko0701
  * @since 2026-02-11
  */
 @Configuration
-@EnableWebSecurity  // Spring Security 웹 보안 활성화 + Spring MVC 통합
+@EnableWebSecurity       // Spring Security 웹 보안 활성화
+@EnableMethodSecurity    // @PreAuthorize, @PostAuthorize 어노테이션 활성화
+@RequiredArgsConstructor
 public class SecurityConfig {
 
+    /** JWT 인증 필터 — Bearer 토큰 검증 + SecurityContext 설정 */
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    /** 인증 실패 핸들러 — 401 Unauthorized JSON 응답 */
+    private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
+
+    /** 접근 거부 핸들러 — 403 Forbidden JSON 응답 */
+    private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
+
     /**
-     * HTTP 보안 필터 체인 설정
+     * BCrypt 비밀번호 인코더 Bean
      *
-     * <p>Spring Security는 서블릿 필터 기반으로 동작합니다.
-     * 모든 HTTP 요청은 이 필터 체인을 통과한 후 컨트롤러에 도달합니다.</p>
+     * <p>회원가입 시 비밀번호 해싱, 로그인 시 비밀번호 검증에 사용됩니다.</p>
+     * <ul>
+     *   <li>단방향 해싱: 원문 복원 불가</li>
+     *   <li>솔트(salt) 자동 생성: 같은 비밀번호도 매번 다른 해시값</li>
+     *   <li>강도(strength) 기본값 10: 2^10 = 1024 라운드 해싱</li>
+     * </ul>
+     */
+    @Bean
+    PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    /**
+     * AuthenticationManager Bean — DB 기반 사용자 인증 수행
      *
-     * <p>요청 흐름: Client → SecurityFilterChain → Controller</p>
+     * <p>{@link DaoAuthenticationProvider}를 사용하여
+     * {@code CustomUserDetailsService}에서 사용자를 조회하고,
+     * {@code BCryptPasswordEncoder}로 비밀번호를 검증합니다.</p>
+     *
+     * <h4>Spring Security 7.x 방식</h4>
+     * <p>Spring Security 7.x에서는 {@code AuthenticationManagerBuilder} 대신
+     * {@link ProviderManager}를 직접 생성하는 방식을 권장합니다.</p>
+     *
+     * @param userDetailsService CustomUserDetailsService (이메일로 사용자 조회)
+     * @param passwordEncoder    BCryptPasswordEncoder (비밀번호 해시 비교)
+     * @return 구성 완료된 AuthenticationManager
+     */
+    @Bean
+    AuthenticationManager authenticationManager(
+            UserDetailsService userDetailsService,
+            PasswordEncoder passwordEncoder
+    ) {
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider(userDetailsService);
+        provider.setPasswordEncoder(passwordEncoder);         // 비밀번호 검증 위임
+        return new ProviderManager(provider);
+    }
+
+    /**
+     * HTTP 보안 필터 체인 설정 — CSRF, 세션, 인가 규칙, JWT 필터, 예외 핸들러
+     *
+     * <p>모든 HTTP 요청은 이 필터 체인을 통과한 후 컨트롤러에 도달합니다.</p>
+     *
+     * <h4>필터 실행 순서</h4>
+     * <pre>
+     * 1. JwtAuthenticationFilter (커스텀, addFilterBefore로 추가)
+     * 2. UsernamePasswordAuthenticationFilter (Spring Security 기본, 비활성화 상태)
+     * 3. ExceptionTranslationFilter (인증/인가 예외를 EntryPoint/Handler로 위임)
+     * 4. AuthorizationFilter (authorizeHttpRequests 규칙 적용)
+     * </pre>
      *
      * @param http Spring Security가 제공하는 HttpSecurity 빌더
      * @return 구성 완료된 SecurityFilterChain
@@ -57,45 +134,58 @@ public class SecurityConfig {
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                // CSRF(Cross-Site Request Forgery) 보호 비활성화
-                // - REST API는 브라우저 폼 기반이 아닌 토큰 기반 인증을 사용하므로 불필요
-                // - CSRF 토큰이 활성화되면 POST/PUT/DELETE 요청 시 403 Forbidden 발생
+                // 1. CSRF 비활성화
+                //    REST API는 토큰 기반 인증을 사용하므로 CSRF 보호가 불필요
                 .csrf(AbstractHttpConfigurer::disable)
 
-                // 세션 관리 정책: STATELESS
-                // - 서버가 세션(HttpSession)을 생성하지 않음
-                // - JWT 토큰 기반 인증에서는 서버가 상태를 유지할 필요가 없음
-                // - 각 요청마다 JWT 토큰으로 인증 (추후 구현)
+                // 2. 세션 관리: Stateless
+                //    JWT 기반 인증이므로 서버 측 세션을 사용하지 않음
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
 
-                // 요청별 접근 권한 설정
-                // - 현재: 모든 요청 허용 (임시, JWT 구현 전)
-                // - 추후: 엔드포인트별 인증/인가 규칙 적용 예정
-                .authorizeHttpRequests(auth ->
-                        auth.anyRequest().permitAll()
+                // 3. 예외 처리 핸들러 등록
+                .exceptionHandling(exception -> exception
+                        .authenticationEntryPoint(jwtAuthenticationEntryPoint)  // 401 처리
+                        .accessDeniedHandler(jwtAccessDeniedHandler)            // 403 처리
+                )
+
+                // 4. 경로별 인가 규칙 (RBAC)
+                .authorizeHttpRequests(auth -> auth
+                        // === 인증 없이 접근 가능 ===
+                        .requestMatchers(
+                                "/api/v1/auth/login",
+                                "/api/v1/auth/register",
+                                "/api/v1/auth/check-email",
+                                "/api/v1/auth/refresh"
+                        ).permitAll()
+
+                        // Swagger / OpenAPI 문서
+                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+
+                        // Actuator 헬스 체크
+                        .requestMatchers("/actuator/**").permitAll()
+
+                        // === 관리자 전용 (ADMIN 역할) ===
+                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+
+                        // === 뉴스: 조회는 인증된 사용자 모두, CUD는 ADMIN만 ===
+                        .requestMatchers(HttpMethod.GET, "/api/v1/news/**").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/news/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/news/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/news/**").hasRole("ADMIN")
+
+                        // === 나머지 모든 요청은 인증 필요 ===
+                        .anyRequest().authenticated()
+                )
+
+                // 5. JWT 필터를 UsernamePasswordAuthenticationFilter 앞에 추가
+                //    Spring Security 기본 폼 로그인 필터보다 먼저 JWT 인증 수행
+                .addFilterBefore(
+                        jwtAuthenticationFilter,
+                        UsernamePasswordAuthenticationFilter.class
                 );
 
         return http.build();
-    }
-
-    /**
-     * 비밀번호 인코더 Bean 등록
-     *
-     * <p>BCrypt 해싱 알고리즘을 사용하여 비밀번호를 안전하게 저장합니다.</p>
-     * <ul>
-     *   <li>단방향 해싱: 원문 복원 불가</li>
-     *   <li>솔트(salt) 자동 생성: 같은 비밀번호도 매번 다른 해시값</li>
-     *   <li>강도(strength) 기본값 10: 2^10 = 1024 라운드 해싱</li>
-     * </ul>
-     *
-     * <p>사용처: UserServiceImpl.register()에서 주입받아 비밀번호 해싱</p>
-     *
-     * @return BCryptPasswordEncoder 인스턴스
-     */
-    @Bean
-    PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
     }
 }

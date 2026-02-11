@@ -1,9 +1,16 @@
 package com.lucr.controller;
 
 import tools.jackson.databind.ObjectMapper;
+import com.lucr.dto.request.LoginRequest;
 import com.lucr.dto.request.RegisterRequest;
+import com.lucr.dto.request.TokenRefreshRequest;
+import com.lucr.dto.response.TokenResponse;
 import com.lucr.dto.response.UserDetailResponse;
+import com.lucr.exception.AuthenticationException;
 import com.lucr.exception.DuplicateResourceException;
+import com.lucr.exception.ErrorCode;
+import com.lucr.exception.ResourceNotFoundException;
+import com.lucr.service.AuthService;
 import com.lucr.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -12,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -22,6 +30,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willDoNothing;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -30,9 +39,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * AuthController 단위 테스트
  *
- * @WebMvcTest: Controller 레이어만 로드 (가벼운 테스트)
- * MockMvc: HTTP 요청/응답 시뮬레이션
- * @MockitoBean: UserService를 Mock으로 대체
+ * <p>회원가입, 이메일 중복 확인, 로그인, 토큰 갱신, 로그아웃 API 테스트</p>
  *
  * @author Ekko0701
  * @since 2026-02-11
@@ -47,18 +54,34 @@ class AuthControllerTest {
     @MockitoBean
     private UserService userService;
 
+    @MockitoBean
+    private AuthService authService;
+
+    // Security 의존성 Mock (SecurityConfig가 주입받는 빈)
+    @MockitoBean
+    private com.lucr.security.JwtTokenProvider jwtTokenProvider;
+
+    @MockitoBean
+    private com.lucr.security.JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
+
+    @MockitoBean
+    private com.lucr.security.JwtAccessDeniedHandler jwtAccessDeniedHandler;
+
     @Autowired
     private ObjectMapper objectMapper;
 
-    private RegisterRequest validRequest;
+    private RegisterRequest validRegisterRequest;
     private UserDetailResponse userDetailResponse;
+    private LoginRequest validLoginRequest;
+    private TokenRefreshRequest validRefreshRequest;
+    private TokenResponse tokenResponse;
     private UUID testId;
 
     @BeforeEach
     void setUp() {
         testId = UUID.randomUUID();
 
-        validRequest = RegisterRequest.builder()
+        validRegisterRequest = RegisterRequest.builder()
                 .email("test@example.com")
                 .password("Test@1234")
                 .name("테스트 사용자")
@@ -73,6 +96,21 @@ class AuthControllerTest {
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
+
+        validLoginRequest = LoginRequest.builder()
+                .email("test@example.com")
+                .password("Test@1234")
+                .build();
+
+        validRefreshRequest = TokenRefreshRequest.builder()
+                .refreshToken("valid-refresh-token")
+                .build();
+
+        tokenResponse = TokenResponse.of(
+                "access-token-value",
+                "refresh-token-value",
+                1800
+        );
     }
 
     // ========== POST /api/v1/auth/register ==========
@@ -91,7 +129,7 @@ class AuthControllerTest {
             mockMvc.perform(
                             post("/api/v1/auth/register")
                                     .contentType(MediaType.APPLICATION_JSON)
-                                    .content(objectMapper.writeValueAsString(validRequest))
+                                    .content(objectMapper.writeValueAsString(validRegisterRequest))
                     )
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.success").value(true))
@@ -117,7 +155,7 @@ class AuthControllerTest {
             mockMvc.perform(
                             post("/api/v1/auth/register")
                                     .contentType(MediaType.APPLICATION_JSON)
-                                    .content(objectMapper.writeValueAsString(validRequest))
+                                    .content(objectMapper.writeValueAsString(validRegisterRequest))
                     )
                     .andExpect(status().isConflict())
                     .andExpect(jsonPath("$.code").value("E409004"))
@@ -274,6 +312,214 @@ class AuthControllerTest {
                     .andExpect(status().isBadRequest());
 
             then(userService).should(never()).existsByEmail(anyString());
+        }
+    }
+
+    // ========== POST /api/v1/auth/login ==========
+
+    @Nested
+    @DisplayName("POST /api/v1/auth/login - 로그인")
+    class LoginTests {
+
+        @Test
+        @DisplayName("성공 - 200 OK + 토큰 반환")
+        void login_Success() throws Exception {
+            // given
+            given(authService.login(any(LoginRequest.class))).willReturn(tokenResponse);
+
+            // when & then
+            mockMvc.perform(
+                            post("/api/v1/auth/login")
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(objectMapper.writeValueAsString(validLoginRequest))
+                    )
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.success").value(true))
+                    .andExpect(jsonPath("$.message").value("로그인이 성공적으로 완료되었습니다."))
+                    .andExpect(jsonPath("$.data.accessToken").value("access-token-value"))
+                    .andExpect(jsonPath("$.data.refreshToken").value("refresh-token-value"))
+                    .andExpect(jsonPath("$.data.tokenType").value("Bearer"))
+                    .andExpect(jsonPath("$.data.expiresIn").value(1800));
+
+            then(authService).should(times(1)).login(any(LoginRequest.class));
+        }
+
+        @Test
+        @DisplayName("실패 - 이메일 누락 (400 Bad Request)")
+        void login_MissingEmail_BadRequest() throws Exception {
+            // given
+            LoginRequest invalidRequest = LoginRequest.builder()
+                    .password("Test@1234")
+                    .build();
+
+            // when & then
+            mockMvc.perform(
+                            post("/api/v1/auth/login")
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(objectMapper.writeValueAsString(invalidRequest))
+                    )
+                    .andExpect(status().isBadRequest());
+
+            then(authService).should(never()).login(any(LoginRequest.class));
+        }
+
+        @Test
+        @DisplayName("실패 - 비밀번호 불일치 (401 Unauthorized)")
+        void login_InvalidPassword_Unauthorized() throws Exception {
+            // given
+            given(authService.login(any(LoginRequest.class)))
+                    .willThrow(AuthenticationException.invalidPassword());
+
+            // when & then
+            mockMvc.perform(
+                            post("/api/v1/auth/login")
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(objectMapper.writeValueAsString(validLoginRequest))
+                    )
+                    .andExpect(status().isUnauthorized())
+                    .andExpect(jsonPath("$.code").value("E401001"))
+                    .andExpect(jsonPath("$.message").exists());
+
+            then(authService).should(times(1)).login(any(LoginRequest.class));
+        }
+
+        @Test
+        @DisplayName("실패 - 존재하지 않는 사용자 (404 Not Found)")
+        void login_UserNotFound() throws Exception {
+            // given
+            given(authService.login(any(LoginRequest.class)))
+                    .willThrow(new ResourceNotFoundException(ErrorCode.USER_NOT_FOUND));
+
+            // when & then
+            mockMvc.perform(
+                            post("/api/v1/auth/login")
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(objectMapper.writeValueAsString(validLoginRequest))
+                    )
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.code").exists())
+                    .andExpect(jsonPath("$.message").exists());
+
+            then(authService).should(times(1)).login(any(LoginRequest.class));
+        }
+    }
+
+    // ========== POST /api/v1/auth/refresh ==========
+
+    @Nested
+    @DisplayName("POST /api/v1/auth/refresh - 토큰 갱신")
+    class RefreshTests {
+
+        @Test
+        @DisplayName("성공 - 200 OK + 새 AccessToken 반환")
+        void refresh_Success() throws Exception {
+            // given
+            TokenResponse refreshResponse = TokenResponse.ofAccessToken("new-access-token", 1800);
+            given(authService.refresh(any(TokenRefreshRequest.class))).willReturn(refreshResponse);
+
+            // when & then
+            mockMvc.perform(
+                            post("/api/v1/auth/refresh")
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(objectMapper.writeValueAsString(validRefreshRequest))
+                    )
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.success").value(true))
+                    .andExpect(jsonPath("$.message").value("토큰이 성공적으로 갱신되었습니다."))
+                    .andExpect(jsonPath("$.data.accessToken").value("new-access-token"))
+                    .andExpect(jsonPath("$.data.expiresIn").value(1800));
+
+            then(authService).should(times(1)).refresh(any(TokenRefreshRequest.class));
+        }
+
+        @Test
+        @DisplayName("실패 - RefreshToken 누락 (400 Bad Request)")
+        void refresh_MissingToken_BadRequest() throws Exception {
+            // given
+            TokenRefreshRequest invalidRequest = TokenRefreshRequest.builder().build();
+
+            // when & then
+            mockMvc.perform(
+                            post("/api/v1/auth/refresh")
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(objectMapper.writeValueAsString(invalidRequest))
+                    )
+                    .andExpect(status().isBadRequest());
+
+            then(authService).should(never()).refresh(any(TokenRefreshRequest.class));
+        }
+
+        @Test
+        @DisplayName("실패 - 존재하지 않는 RefreshToken (404 Not Found)")
+        void refresh_TokenNotFound() throws Exception {
+            // given
+            given(authService.refresh(any(TokenRefreshRequest.class)))
+                    .willThrow(new ResourceNotFoundException(ErrorCode.REFRESH_TOKEN_NOT_FOUND));
+
+            // when & then
+            mockMvc.perform(
+                            post("/api/v1/auth/refresh")
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(objectMapper.writeValueAsString(validRefreshRequest))
+                    )
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.code").exists())
+                    .andExpect(jsonPath("$.message").exists());
+
+            then(authService).should(times(1)).refresh(any(TokenRefreshRequest.class));
+        }
+
+        @Test
+        @DisplayName("실패 - 만료된 RefreshToken (401 Unauthorized)")
+        void refresh_ExpiredToken() throws Exception {
+            // given
+            given(authService.refresh(any(TokenRefreshRequest.class)))
+                    .willThrow(AuthenticationException.expiredToken());
+
+            // when & then
+            mockMvc.perform(
+                            post("/api/v1/auth/refresh")
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(objectMapper.writeValueAsString(validRefreshRequest))
+                    )
+                    .andExpect(status().isUnauthorized())
+                    .andExpect(jsonPath("$.code").value("E401002"))
+                    .andExpect(jsonPath("$.message").exists());
+
+            then(authService).should(times(1)).refresh(any(TokenRefreshRequest.class));
+        }
+    }
+
+    // ========== POST /api/v1/auth/logout ==========
+
+    @Nested
+    @DisplayName("POST /api/v1/auth/logout - 로그아웃")
+    class LogoutTests {
+
+        @Test
+        @DisplayName("성공 - 200 OK")
+        void logout_Success() throws Exception {
+            // given — JwtAuthenticationFilter가 Bearer 토큰을 검증하여 SecurityContext를 설정하도록 구성
+            // STATELESS 세션 정책에서는 authentication() post-processor가 동작하지 않으므로,
+            // 실제 필터 흐름과 동일하게 Authorization 헤더에 토큰을 전달하고
+            // mock된 JwtTokenProvider가 해당 토큰을 검증/파싱하도록 설정
+            UUID userId = UUID.randomUUID();
+            String fakeToken = "fake-jwt-token-for-test";
+
+            given(jwtTokenProvider.validateToken(fakeToken)).willReturn(true);
+            given(jwtTokenProvider.getUserId(fakeToken)).willReturn(userId);
+            given(jwtTokenProvider.getEmail(fakeToken)).willReturn("test@example.com");
+            given(jwtTokenProvider.getRole(fakeToken)).willReturn("USER");
+            willDoNothing().given(authService).logout(any(UUID.class));
+
+            // when & then
+            mockMvc.perform(post("/api/v1/auth/logout")
+                            .header("Authorization", "Bearer " + fakeToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.success").value(true))
+                    .andExpect(jsonPath("$.message").value("로그아웃이 성공적으로 완료되었습니다."));
+
+            then(authService).should(times(1)).logout(userId);
         }
     }
 }

@@ -66,3 +66,11 @@ logging:
   level:
     com.lucr: DEBUG
     org.hibernate.SQL: DEBUG
+
+
+# JWT 설정 (테스트용)
+jwt:
+  secret: test-secret-key-must-be-at-least-32-characters-long-for-hmac-sha256
+  access-token-expiration: 1800000     # 30분
+  refresh-token-expiration: 604800000  # 7일
+  issuer: lucr-api-test

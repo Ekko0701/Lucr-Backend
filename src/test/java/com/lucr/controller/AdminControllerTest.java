@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
@@ -42,6 +43,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * @since 2026-01-28
  */
 @WebMvcTest(AdminController.class)
+@WithMockUser(roles = "ADMIN")  // 모든 테스트에 ADMIN 역할 적용
 @DisplayName("AdminController 테스트")
 class AdminControllerTest {
 
@@ -53,6 +55,16 @@ class AdminControllerTest {
 
     @MockitoBean
     private CrawlJobPublisher crawlJobPublisher;
+
+    // Security 의존성 Mock (SecurityConfig가 주입받는 빈)
+    @MockitoBean
+    private com.lucr.security.JwtTokenProvider jwtTokenProvider;
+
+    @MockitoBean
+    private com.lucr.security.JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
+
+    @MockitoBean
+    private com.lucr.security.JwtAccessDeniedHandler jwtAccessDeniedHandler;
 
     // 테스트 데이터
     private UUID testJobId;

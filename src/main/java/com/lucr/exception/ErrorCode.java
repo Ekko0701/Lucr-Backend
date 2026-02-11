@@ -19,14 +19,27 @@ public enum ErrorCode {
     INVALID_TYPE_VALUE(HttpStatus.BAD_REQUEST, "E400002", "타입이 올바르지 않습니다."),
     MISSING_REQUEST_PARAMETER(HttpStatus.BAD_REQUEST, "E400003", "필수 파라미터가 누락되었습니다."),
     
-    // 401 Unauthorized
+    // 401 Unauthorized — 인증 실패
+    /** 로그인 시 비밀번호 불일치 */
     INVALID_PASSWORD(HttpStatus.UNAUTHORIZED, "E401001", "비밀번호가 일치하지 않습니다."),
+    /** JWT AccessToken 또는 RefreshToken 유효기간 만료 */
+    EXPIRED_TOKEN(HttpStatus.UNAUTHORIZED, "E401002", "토큰이 만료되었습니다."),
+    /** JWT 서명 불일치, 형식 오류, 지원하지 않는 토큰 등 */
+    INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "E401003", "유효하지 않은 토큰입니다."),
+    /** Authorization 헤더 누락 또는 Bearer 토큰 미제공 */
+    UNAUTHORIZED_ACCESS(HttpStatus.UNAUTHORIZED, "E401004", "인증이 필요합니다."),
+
+    // 403 Forbidden — 인가 실패
+    /** 인증은 되었으나 해당 리소스에 대한 권한이 없을 때 (RBAC) */
+    ACCESS_DENIED(HttpStatus.FORBIDDEN, "E403001", "접근 권한이 없습니다."),
 
     // 404 Not Found
     RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "E404001", "요청한 리소스를 찾을 수 없습니다."),
     NEWS_NOT_FOUND(HttpStatus.NOT_FOUND, "E404002", "뉴스를 찾을 수 없습니다."),
     CRAWL_JOB_NOT_FOUND(HttpStatus.NOT_FOUND, "E404003", "크롤링 작업을 찾을 수 없습니다."),
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "E404004", "사용자를 찾을 수 없습니다."),
+    /** 토큰 갱신 시 DB에 해당 RefreshToken이 존재하지 않을 때 */
+    REFRESH_TOKEN_NOT_FOUND(HttpStatus.NOT_FOUND, "E404005", "리프레시 토큰을 찾을 수 없습니다."),
     
     // 409 Conflict
     DUPLICATE_RESOURCE(HttpStatus.CONFLICT, "E409001", "이미 존재하는 리소스입니다."),

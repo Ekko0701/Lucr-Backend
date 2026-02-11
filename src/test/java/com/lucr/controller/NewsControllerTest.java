@@ -20,6 +20,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
@@ -53,6 +54,16 @@ class NewsControllerTest {
 
     @MockitoBean
     private NewsService newsService;
+
+    // Security 의존성 Mock (SecurityConfig가 주입받는 빈)
+    @MockitoBean
+    private com.lucr.security.JwtTokenProvider jwtTokenProvider;
+
+    @MockitoBean
+    private com.lucr.security.JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
+
+    @MockitoBean
+    private com.lucr.security.JwtAccessDeniedHandler jwtAccessDeniedHandler;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -122,6 +133,7 @@ class NewsControllerTest {
     class GetAllNewsTests {
 
         @Test
+        @WithMockUser
         @DisplayName("성공 - 뉴스 목록 조회")
         void getAllNews_Success() throws Exception {
             // given
@@ -161,6 +173,7 @@ class NewsControllerTest {
         }
 
         @Test
+        @WithMockUser
         @DisplayName("빈 목록 - 200 OK")
         void getAllNews_EmptyList() throws Exception {
             // given
@@ -196,6 +209,7 @@ class NewsControllerTest {
     class GetNewsByIdTests {
 
         @Test
+        @WithMockUser
         @DisplayName("성공 - 뉴스 상세 조회")
         void getNews_Success() throws Exception {
             // given
@@ -218,6 +232,7 @@ class NewsControllerTest {
         }
 
         @Test
+        @WithMockUser
         @DisplayName("실패 - 존재하지 않는 ID (404)")
         void getNews_NotFound() throws Exception {
             // given
@@ -242,6 +257,7 @@ class NewsControllerTest {
     class CreateNewsTests {
 
         @Test
+        @WithMockUser(roles = "ADMIN")
         @DisplayName("성공 - 뉴스 생성")
         void createNews_Success() throws Exception {
             // given
@@ -264,6 +280,7 @@ class NewsControllerTest {
         }
 
         @Test
+        @WithMockUser(roles = "ADMIN")
         @DisplayName("실패 - 제목이 너무 짧음 (Validation)")
         void createNews_TitleTooShort() throws Exception {
             // given
@@ -288,6 +305,7 @@ class NewsControllerTest {
         }
 
         @Test
+        @WithMockUser(roles = "ADMIN")
         @DisplayName("실패 - 필수 필드 누락 (Validation)")
         void createNews_MissingRequiredFields() throws Exception {
             // given
@@ -310,6 +328,7 @@ class NewsControllerTest {
         }
 
         @Test
+        @WithMockUser(roles = "ADMIN")
         @DisplayName("실패 - 중복 URL (409)")
         void createNews_DuplicateUrl_Conflict() throws Exception {
             // given - 동일한 URL의 뉴스가 이미 존재
@@ -337,6 +356,7 @@ class NewsControllerTest {
     class UpdateNewsTests {
 
         @Test
+        @WithMockUser(roles = "ADMIN")
         @DisplayName("성공 - 뉴스 수정")
         void updateNews_Success() throws Exception {
             // given
@@ -358,6 +378,7 @@ class NewsControllerTest {
         }
 
         @Test
+        @WithMockUser(roles = "ADMIN")
         @DisplayName("실패 - 존재하지 않는 ID (404)")
         void updateNews_NotFound() throws Exception {
             // given
@@ -384,6 +405,7 @@ class NewsControllerTest {
     class DeleteNewsTests {
 
         @Test
+        @WithMockUser(roles = "ADMIN")
         @DisplayName("성공 - 뉴스 삭제")
         void deleteNews_Success() throws Exception {
             // given
@@ -399,6 +421,7 @@ class NewsControllerTest {
         }
 
         @Test
+        @WithMockUser(roles = "ADMIN")
         @DisplayName("실패 - 존재하지 않는 ID (404)")
         void deleteNews_NotFound() throws Exception {
             // given
@@ -421,6 +444,7 @@ class NewsControllerTest {
     class GetPopularNewsTests {
 
         @Test
+        @WithMockUser
         @DisplayName("성공 - 인기 뉴스 조회")
         void getPopularNews_Success() throws Exception {
             // given
@@ -456,6 +480,7 @@ class NewsControllerTest {
     class GetRecentNewsTests {
 
         @Test
+        @WithMockUser
         @DisplayName("성공 - 최신 뉴스 조회")
         void getRecentNews_Success() throws Exception {
             // given
@@ -491,6 +516,7 @@ class NewsControllerTest {
     class SearchByKeywordTests {
 
         @Test
+        @WithMockUser
         @DisplayName("성공 - 키워드 검색")
         void searchByKeyword_Success() throws Exception {
             // given
@@ -525,6 +551,7 @@ class NewsControllerTest {
         }
 
         @Test
+        @WithMockUser
         @DisplayName("실패 - 키워드 누락 (400)")
         void searchByKeyword_MissingKeyword() throws Exception {
             // when & then
@@ -540,6 +567,7 @@ class NewsControllerTest {
     class AdvancedSearchTests {
 
         @Test
+        @WithMockUser(roles = "ADMIN")
         @DisplayName("성공 - 고급 검색")
         void advancedSearch_Success() throws Exception {
             // given
@@ -587,6 +615,7 @@ class NewsControllerTest {
     class GetNewsBySourceTests {
 
         @Test
+        @WithMockUser
         @DisplayName("성공 - 출처별 뉴스 조회")
         void getNewsBySource_Success() throws Exception {
             // given
@@ -624,6 +653,7 @@ class NewsControllerTest {
     class IncrementViewCountTests {
 
         @Test
+        @WithMockUser
         @DisplayName("성공 - 조회수 증가")
         void incrementViewCount_Success() throws Exception {
             // given
@@ -656,6 +686,7 @@ class NewsControllerTest {
     class CheckUrlExistsTests {
 
         @Test
+        @WithMockUser
         @DisplayName("성공 - URL 존재함")
         void checkUrlExists_True() throws Exception {
             // given
@@ -676,6 +707,7 @@ class NewsControllerTest {
         }
 
         @Test
+        @WithMockUser
         @DisplayName("성공 - URL 존재하지 않음")
         void checkUrlExists_False() throws Exception {
             // given
