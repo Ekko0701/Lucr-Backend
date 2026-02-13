@@ -4,6 +4,7 @@ import com.lucr.security.JwtAccessDeniedHandler;
 import com.lucr.security.JwtAuthenticationEntryPoint;
 import com.lucr.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -54,6 +55,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
  * /api/v1/admin/**            │ ADMIN 역할만
  * GET /api/v1/news/**         │ 인증된 사용자 (USER + ADMIN)
  * POST/PUT/DELETE /api/v1/news│ ADMIN 역할만
+ * GET /api/v1/stocks/**       │ 인증된 사용자 (USER + ADMIN)
+ * POST/DELETE /api/v1/stocks  │ ADMIN 역할만
  * 나머지 모든 경로              │ 인증 필요 (authenticated)
  * </pre>
  *
@@ -74,6 +77,33 @@ public class SecurityConfig {
 
     /** 접근 거부 핸들러 — 403 Forbidden JSON 응답 */
     private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
+
+    /**
+     * JwtAuthenticationFilter의 Servlet 필터 자동 등록 비활성화
+     *
+     * <p>{@code @Component}로 선언된 {@code JwtAuthenticationFilter}는
+     * Spring Boot에 의해 Servlet 필터로 자동 등록됩니다.
+     * 하지만 이 필터는 {@link #securityFilterChain(HttpSecurity)}에서
+     * {@code addFilterBefore()}로 SecurityFilterChain 내부에 추가되므로,
+     * Servlet 필터로도 등록되면 <strong>이중 실행</strong>됩니다.</p>
+     *
+     * <h4>이중 등록 시 발생하는 문제</h4>
+     * <pre>
+     * 1. JwtAuthenticationFilter (Servlet 필터) 실행 → SecurityContext 설정
+     * 2. SecurityContextHolderFilter 실행 → SecurityContext를 빈 컨텍스트로 덮어씀!
+     * 3. JwtAuthenticationFilter (SecurityFilterChain 내부) → OncePerRequestFilter로 스킵
+     * 4. 인증 정보 유실 → 모든 요청 401 Unauthorized
+     * </pre>
+     *
+     * <p>Servlet 필터 등록을 비활성화하여 SecurityFilterChain 내부에서만 실행되도록 합니다.</p>
+     */
+    @Bean
+    FilterRegistrationBean<JwtAuthenticationFilter> disableJwtFilterAutoRegistration() {
+        FilterRegistrationBean<JwtAuthenticationFilter> registration =
+                new FilterRegistrationBean<>(jwtAuthenticationFilter);
+        registration.setEnabled(false);
+        return registration;
+    }
 
     /**
      * BCrypt 비밀번호 인코더 Bean
@@ -174,6 +204,11 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/news/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/v1/news/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/news/**").hasRole("ADMIN")
+
+                        // === 종목: 조회는 인증된 사용자 모두, 등록/삭제는 ADMIN만 ===
+                        .requestMatchers(HttpMethod.GET, "/api/v1/stocks/**").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/stocks/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/stocks/**").hasRole("ADMIN")
 
                         // === 나머지 모든 요청은 인증 필요 ===
                         .anyRequest().authenticated()

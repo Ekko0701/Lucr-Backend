@@ -40,12 +40,16 @@ public enum ErrorCode {
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "E404004", "사용자를 찾을 수 없습니다."),
     /** 토큰 갱신 시 DB에 해당 RefreshToken이 존재하지 않을 때 */
     REFRESH_TOKEN_NOT_FOUND(HttpStatus.NOT_FOUND, "E404005", "리프레시 토큰을 찾을 수 없습니다."),
+    /** 종목코드로 조회했으나 해당 종목이 존재하지 않을 때 */
+    STOCK_NOT_FOUND(HttpStatus.NOT_FOUND, "E404006", "종목을 찾을 수 없습니다."),
     
     // 409 Conflict
     DUPLICATE_RESOURCE(HttpStatus.CONFLICT, "E409001", "이미 존재하는 리소스입니다."),
     DUPLICATE_NEWS_URL(HttpStatus.CONFLICT, "E409002", "이미 존재하는 뉴스 URL입니다."),
     CRAWL_JOB_ALREADY_RUNNING(HttpStatus.CONFLICT, "E409003", "이미 실행 중인 크롤링 작업이 있습니다."),
     DUPLICATE_EMAIL(HttpStatus.CONFLICT, "E409004", "이미 사용 중인 이메일입니다."),
+    /** 이미 등록된 종목코드로 종목 생성을 시도할 때 */
+    DUPLICATE_STOCK_CODE(HttpStatus.CONFLICT, "E409005", "이미 존재하는 종목코드입니다."),
     
     // 500 Internal Server Error
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "E500001", "서버 내부 오류가 발생했습니다."),

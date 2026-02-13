@@ -7,6 +7,8 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -152,6 +154,19 @@ public class News {
     @Column(name = "updated_at")
     @UpdateTimestamp
     private LocalDateTime updatedAt;
+
+    /**
+     * 이 뉴스와 관련된 종목 목록 (NewsStock 중간 테이블)
+     *
+     * <ul>
+     *   <li>{@code mappedBy = "news"}: NewsStock.news 필드가 관계의 주인</li>
+     *   <li>{@code cascade = ALL}: News 삭제 시 관련 NewsStock도 함께 삭제</li>
+     *   <li>{@code orphanRemoval = true}: 컬렉션에서 제거 시 DB에서도 삭제</li>
+     * </ul>
+     */
+    @OneToMany(mappedBy = "news", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<NewsStock> newsStocks = new ArrayList<>();
 
     /**
      * JPA Lifecycle 콜백 - INSERT 전 실행
