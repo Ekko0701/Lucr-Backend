@@ -24,6 +24,11 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import com.lucr.config.CacheConstants;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
+
 /**
  * 뉴스 비즈니스 로직 서비스 구현체
  * 
@@ -41,9 +46,19 @@ public class NewsServiceImpl implements NewsService {
 
     /**
      * 새로운 뉴스 생성
+     * 
+     * 캐시 전략:
+     * - 목록 캐시 전체 삭제 (새 뉴스가 목록에 포함되어야 함)
+     * - @CacheEvict(allEntries = true): 모든 페이지의 캐시 무효화
+     * - news-list, news-popular, news-recent 캐시 모두 삭제
      */
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = CacheConstants.NEWS_LIST, allEntries = true),
+            @CacheEvict(value = CacheConstants.NEWS_POPULAR, allEntries = true),
+            @CacheEvict(value = CacheConstants.NEWS_RECENT, allEntries = true)
+    })
     public NewsDetailResponse createNews(NewsCreateRequest request) {
         log.info("뉴스 생성 요청: title={}, source={}", request.getTitle(), request.getSource());
 
@@ -66,8 +81,14 @@ public class NewsServiceImpl implements NewsService {
 
     /**
      * 뉴스 ID로 단건 조회 (상세 정보)
+     * 
+     * 캐시 전략:
+     * - @Cacheable: 조회 결과를 Redis에 캐시 (TTL: 5분)
+     * - key: 뉴스 ID (예: "news::550e8400-...")
+     * - 캐시 히트 시 DB 접근 없이 Redis에서 반환
      */
     @Override
+    @Cacheable(value = CacheConstants.NEWS, key = "#id")
     public NewsDetailResponse getNewsById(UUID id) {
         log.debug("뉴스 조회 요청: id={}", id);
 
@@ -82,8 +103,15 @@ public class NewsServiceImpl implements NewsService {
 
     /**
      * 뉴스 목록 조회 (페이징)
+     * 
+     * 캐시 전략:
+     * - @Cacheable: 페이지별 결과를 Redis에 캐시 (TTL: 2분)
+     * - key: "pageNumber_pageSize" (예: "0_10", "1_20")
+     * - 각 페이지별로 별도의 캐시 키 생성
      */
     @Override
+    @Cacheable(value = CacheConstants.NEWS_LIST,
+            key = "#pageable.pageNumber + '_' + #pageable.pageSize")
     public PageResponse<NewsResponse> getAllNews(Pageable pageable) {
         log.debug("뉴스 목록 조회 요청: page={}, size={}", pageable.getPageNumber(), pageable.getPageSize());
 
@@ -98,9 +126,21 @@ public class NewsServiceImpl implements NewsService {
 
     /**
      * 뉴스 수정
+     * 
+     * 캐시 전략:
+     * - 단건 캐시 삭제: 해당 뉴스의 상세 정보 캐시 무효화
+     * - 목록 캐시 전체 삭제: 수정된 뉴스가 포함된 모든 목록 갱신
+     * - @CacheEvict(key = "#id"): 특정 뉴스 캐시만 삭제
+     * - @CacheEvict(allEntries = true): 목록 캐시 전체 삭제
      */
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = CacheConstants.NEWS, key = "#id"),
+            @CacheEvict(value = CacheConstants.NEWS_LIST, allEntries = true),
+            @CacheEvict(value = CacheConstants.NEWS_POPULAR, allEntries = true),
+            @CacheEvict(value = CacheConstants.NEWS_RECENT, allEntries = true)
+    })
     public NewsDetailResponse updateNews(UUID id, NewsUpdateRequest request) {
         log.info("뉴스 수정 요청: id={}", id);
 
@@ -121,9 +161,19 @@ public class NewsServiceImpl implements NewsService {
 
     /**
      * 뉴스 삭제
+     * 
+     * 캐시 전략:
+     * - 단건 캐시 삭제: 삭제된 뉴스의 상세 정보 캐시 제거
+     * - 목록 캐시 전체 삭제: 삭제된 뉴스가 제외된 목록으로 갱신
      */
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = CacheConstants.NEWS, key = "#id"),
+            @CacheEvict(value = CacheConstants.NEWS_LIST, allEntries = true),
+            @CacheEvict(value = CacheConstants.NEWS_POPULAR, allEntries = true),
+            @CacheEvict(value = CacheConstants.NEWS_RECENT, allEntries = true)
+    })
     public void deleteNews(UUID id) {
         log.info("뉴스 삭제 요청: id={}", id);
 
@@ -189,8 +239,15 @@ public class NewsServiceImpl implements NewsService {
 
     /**
      * 인기 뉴스 목록 조회 (조회수 높은 순)
+     * 
+     * 캐시 전략:
+     * - @Cacheable: 조회수 기반 순위 캐시 (TTL: 1분, 실시간성 중요)
+     * - key: "pageNumber_pageSize"
+     * - 짧은 TTL로 최신 인기 뉴스 반영
      */
     @Override
+    @Cacheable(value = CacheConstants.NEWS_POPULAR,
+            key = "#pageable.pageNumber + '_' + #pageable.pageSize")
     public PageResponse<NewsResponse> getHighViewNews(Pageable pageable) {
         log.debug("인기 뉴스 조회 요청: page={}, size={}", 
                 pageable.getPageNumber(), pageable.getPageSize());
@@ -206,8 +263,15 @@ public class NewsServiceImpl implements NewsService {
 
     /**
      * 최신 뉴스 목록 조회 (생성일 최신순)
+     * 
+     * 캐시 전략:
+     * - @Cacheable: 최신 뉴스 목록 캐시 (TTL: 1분, 실시간성 중요)
+     * - key: "pageNumber_pageSize"
+     * - 새 뉴스 생성 시 캐시 무효화되어 최신 상태 유지
      */
     @Override
+    @Cacheable(value = CacheConstants.NEWS_RECENT,
+            key = "#pageable.pageNumber + '_' + #pageable.pageSize")
     public PageResponse<NewsResponse> getRecentNews(Pageable pageable) {
         log.debug("최신 뉴스 조회 요청: page={}, size={}", 
                 pageable.getPageNumber(), pageable.getPageSize());
