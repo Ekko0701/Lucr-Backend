@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import org.springframework.data.domain.Page;
 
 import java.util.List;
+import java.io.Serializable;
 
 /**
  * 페이징 응답 DTO
@@ -24,7 +25,9 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class PageResponse<T> {
+public class PageResponse<T> implements Serializable {
+
+    private static final long serialVersionUID = 1L;
     
     /**
      * 실제 데이터 목록

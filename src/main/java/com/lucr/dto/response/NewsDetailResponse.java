@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import java.io.Serializable;
 
 /**
  * 뉴스 상세 응답 DTO
@@ -24,8 +25,10 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class NewsDetailResponse {
-    
+public class NewsDetailResponse implements Serializable {
+
+    private static final long serialVersionUID = 1L;
+
     /**
      * 뉴스 ID
      */

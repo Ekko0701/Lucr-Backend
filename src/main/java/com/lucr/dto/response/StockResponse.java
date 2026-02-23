@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.io.Serializable;
 
 /**
  * 종목 응답 DTO
@@ -29,7 +30,9 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class StockResponse {
+public class StockResponse implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private String code;
 
