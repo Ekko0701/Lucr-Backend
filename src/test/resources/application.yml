@@ -44,6 +44,10 @@ spring:
         # 이렇게 하면 Bean은 생성되지만 실제 RabbitMQ 연결을 시도하지 않음
         auto-startup: false
 
+  # Cache 설정 (테스트용 - 메모리 기반)
+  cache:
+    type: simple  # ConcurrentMapCacheManager 사용 (Redis 불필요)
+
 # 서버 설정
 server:
   port: 0  # 랜덤 포트 (테스트 간 충돌 방지)

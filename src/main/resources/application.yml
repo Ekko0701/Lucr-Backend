@@ -28,6 +28,16 @@ spring:
     username: ${RABBITMQ_USER}
     password: ${RABBITMQ_PASSWORD}
 
+  # Redis 설정
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+  # 캐시 설정
+  cache:
+    type: redis
+
 # 서버 설정
 server:
   port: ${SERVER_PORT:8081}
