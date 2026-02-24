@@ -52,6 +52,32 @@ import java.util.Map;
 public class RedisConfig {
 
     /**
+     * Redis 전용 ObjectMapper — 단일 인스턴스로 재사용
+     *
+     * <p>ObjectMapper는 생성 비용이 크고 thread-safe하므로 필드로 한 번만 생성한다.
+     * 기존에 메서드로 정의되어 cacheConfig() 호출마다 새 인스턴스가 생성되던 문제를 수정.</p>
+     */
+    private final ObjectMapper redisObjectMapper = buildRedisObjectMapper();
+
+    private static ObjectMapper buildRedisObjectMapper() {
+        ObjectMapper mapper = new ObjectMapper();
+
+        // Java 8 날짜/시간 모듈 등록 (LocalDateTime 등)
+        mapper.registerModule(new JavaTimeModule());
+        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+
+        // 다형성 타입 정보 활성화 — 역직렬화 시 올바른 클래스로 복원
+        mapper.activateDefaultTyping(
+                BasicPolymorphicTypeValidator.builder()
+                        .allowIfBaseType(Object.class)
+                        .build(),
+                ObjectMapper.DefaultTyping.NON_FINAL
+        );
+
+        return mapper;
+    }
+
+    /**
      * RedisTemplate — 조회수 INCR 등 직접 Redis 명령을 실행할 때 사용
      *
      * <p>{@code @Cacheable}은 CacheManager를 사용하지만,
@@ -71,7 +97,7 @@ public class RedisConfig {
 
         // Value: JSON 직렬화 (Jackson 2)
         GenericJackson2JsonRedisSerializer jsonSerializer =
-                new GenericJackson2JsonRedisSerializer(redisObjectMapper());
+                new GenericJackson2JsonRedisSerializer(redisObjectMapper);
         template.setValueSerializer(jsonSerializer);
         template.setHashValueSerializer(jsonSerializer);
 
@@ -144,34 +170,8 @@ public class RedisConfig {
                                 .fromSerializer(new StringRedisSerializer()))
                 .serializeValuesWith(
                         RedisSerializationContext.SerializationPair
-                                .fromSerializer(new GenericJackson2JsonRedisSerializer(redisObjectMapper())))
+                                .fromSerializer(new GenericJackson2JsonRedisSerializer(redisObjectMapper)))
                 .disableCachingNullValues();
     }
 
-    /**
-     * Redis 전용 ObjectMapper (Jackson 2)
-     *
-     * <p>Jackson이 LocalDateTime 등 Java 8 타입을 올바르게 직렬화/역직렬화하려면
-     * JavaTimeModule 등록이 필요하다.</p>
-     *
-     * <p>{@code activateDefaultTyping}은 역직렬화 시 원래 클래스 타입을 복원하기 위해 필요하다.
-     * JSON에 {@code "@class": "com.lucr.dto.response.NewsResponse"} 같은 타입 정보가 포함된다.</p>
-     */
-    private ObjectMapper redisObjectMapper() {
-        ObjectMapper mapper = new ObjectMapper();
-
-        // Java 8 날짜/시간 모듈 등록 (LocalDateTime 등)
-        mapper.registerModule(new JavaTimeModule());
-        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-
-        // 다형성 타입 정보 활성화 — 역직렬화 시 올바른 클래스로 복원
-        mapper.activateDefaultTyping(
-                BasicPolymorphicTypeValidator.builder()
-                        .allowIfBaseType(Object.class)
-                        .build(),
-                ObjectMapper.DefaultTyping.NON_FINAL
-        );
-
-        return mapper;
-    }
 }

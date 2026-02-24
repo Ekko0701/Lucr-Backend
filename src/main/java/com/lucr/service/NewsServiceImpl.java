@@ -43,6 +43,7 @@ public class NewsServiceImpl implements NewsService {
 
     private final NewsRepository newsRepository;
     private final NewsMapper newsMapper;
+    private final ViewCountService viewCountService;
 
     /**
      * 새로운 뉴스 생성
@@ -220,7 +221,6 @@ public class NewsServiceImpl implements NewsService {
      * 뉴스 조회수 증가
      */
     @Override
-    @Transactional
     public NewsDetailResponse incrementViewCount(UUID id) {
         log.debug("조회수 증가 요청: id={}", id);
 
@@ -230,11 +230,19 @@ public class NewsServiceImpl implements NewsService {
                     return ResourceNotFoundException.newsNotFound(id.toString());
                 });
 
-        // 조회수 증가 (Entity의 비즈니스 로직 메서드 사용)
-        news.incrementViewCount();
-        log.debug("조회수 증가 완료: id={}, viewCount={}", id, news.getViewCount());
+        // Redis에서 조회수 증가 (INCR) — 증가 후 Redis 누적값 반환
+        long redisIncrement = viewCountService.incrementViewCount(id);
 
-        return newsMapper.toDetailResponse(news);
+        // 응답 생성
+        NewsDetailResponse response = newsMapper.toDetailResponse(news);
+
+        // DB 조회수 + Redis 증가분 = 실시간 조회수
+        // incrementViewCount()가 이미 INCR 후의 누적값을 반환하므로 추가 GET 호출 불필요
+        response.setViewCount((int)(news.getViewCount() + redisIncrement));
+
+        log.debug("조회수 증가 완료: id={}, viewCount={}", id, response.getViewCount());
+
+        return response;
     }
 
     /**

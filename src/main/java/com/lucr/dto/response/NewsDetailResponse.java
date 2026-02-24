@@ -138,4 +138,8 @@ public class NewsDetailResponse implements Serializable {
         int minutes = length / 200;
         return minutes < 1 ? 1 : minutes;
     }
+
+    public void setViewCount(int viewCount) {
+        this.viewCount = viewCount;
+    }
 }
