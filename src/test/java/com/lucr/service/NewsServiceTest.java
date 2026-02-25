@@ -57,6 +57,10 @@ class NewsServiceTest {
     @Mock
     private NewsMapper newsMapper;
 
+    // ViewCountService Mock — incrementViewCount() 내부에서 Redis INCR 위임
+    @Mock
+    private ViewCountService viewCountService;
+
     @InjectMocks
     private NewsServiceImpl newsService;
 
@@ -470,19 +474,25 @@ class NewsServiceTest {
     class IncrementViewCountTests {
 
         @Test
-        @DisplayName("정상 증가 - 성공")
-        void incrementViewCount_Success() {
-            // given: 뉴스가 존재함
+        @DisplayName("DB 조회수와 Redis 증가분을 합산하여 반환한다")
+        void incrementViewCount_ReturnsSumOfDbAndRedisIncrement() {
+            // given: 뉴스가 존재하고(DB viewCount=1500), Redis INCR 후 증가분 50 반환
             given(newsRepository.findById(testId)).willReturn(Optional.of(testNews));
+            // ViewCountService.incrementViewCount()는 Redis INCR 후 누적값(증가분)을 반환
+            given(viewCountService.incrementViewCount(testId)).willReturn(50L);
             given(newsMapper.toDetailResponse(testNews)).willReturn(detailResponse);
 
             // when: 조회수 증가
             NewsDetailResponse result = newsService.incrementViewCount(testId);
 
-            // then: DetailResponse 반환
-            assertThat(result).isNotNull();
+            // then 1: DB viewCount(1500) + Redis 증가분(50) = 1550으로 세팅됨
+            assertThat(result.getViewCount()).isEqualTo(1550);
 
-            // Mock 호출 검증
+            // then 2: Redis INCR 위임이 정확히 1회 발생했는지 확인
+            // → getViewCount() 추가 GET 호출이 없어야 함 (이전에 발생하던 이중 Redis 호출 방지)
+            then(viewCountService).should(times(1)).incrementViewCount(testId);
+
+            // then 3: DB 조회 및 Mapper 호출 검증
             then(newsRepository).should(times(1)).findById(testId);
             then(newsMapper).should(times(1)).toDetailResponse(testNews);
         }
@@ -494,28 +504,30 @@ class NewsServiceTest {
             UUID nonExistentId = UUID.randomUUID();
             given(newsRepository.findById(nonExistentId)).willReturn(Optional.empty());
 
-            // when & then: ResourceNotFoundException 발생
+            // when & then: 뉴스 존재 확인 실패 → ResourceNotFoundException 전파
             assertThatThrownBy(() -> newsService.incrementViewCount(nonExistentId))
                     .isInstanceOf(ResourceNotFoundException.class)
                     .hasMessageContaining("뉴스를 찾을 수 없습니다");
 
-            // Mapper는 호출되지 않아야 함
+            // then: 뉴스가 없으므로 Redis INCR(ViewCountService) 및 Mapper 미호출
+            then(viewCountService).should(never()).incrementViewCount(any());
             then(newsMapper).should(never()).toDetailResponse(any());
         }
 
         @Test
-        @DisplayName("Entity.incrementViewCount() 호출 검증")
-        void incrementViewCount_CallsEntity_IncrementViewCount() {
-            // given
-            News spyNews = org.mockito.Mockito.spy(testNews);
-            given(newsRepository.findById(testId)).willReturn(Optional.of(spyNews));
-            given(newsMapper.toDetailResponse(any())).willReturn(detailResponse);
+        @DisplayName("Redis가 0을 반환하면(연결 실패 등) DB 조회수만 반환한다")
+        void incrementViewCount_RedisReturnsZero_ReturnsDbViewCount() {
+            // given: Redis 연결 실패 등으로 incrementViewCount가 0을 반환하는 상황
+            // (ViewCountServiceImpl은 null 반환 시 0으로 처리)
+            given(newsRepository.findById(testId)).willReturn(Optional.of(testNews));
+            given(viewCountService.incrementViewCount(testId)).willReturn(0L);
+            given(newsMapper.toDetailResponse(testNews)).willReturn(detailResponse);
 
             // when
-            newsService.incrementViewCount(testId);
+            NewsDetailResponse result = newsService.incrementViewCount(testId);
 
-            // then: Entity의 incrementViewCount()가 호출됨
-            then(spyNews).should(times(1)).incrementViewCount();
+            // then: Redis 증가분 0이므로 DB viewCount(1500) 그대로 반환
+            assertThat(result.getViewCount()).isEqualTo(1500);
         }
     }
 
