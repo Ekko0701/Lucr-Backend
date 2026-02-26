@@ -1,5 +1,6 @@
 package com.lucr.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -77,6 +78,14 @@ public class NewsResponse implements Serializable {
     private BigDecimal sentimentScore;
     
     /**
+     * 감정 분석 레이블
+     * 
+     * sentimentScore를 한글로 변환한 값
+     * "분석 전", "매우 긍정적", "긍정적", "중립", "부정적", "매우 부정적"
+     */
+    private String sentimentLabel;
+    
+    /**
      * 뉴스 발행 시간
      */
     private LocalDateTime publishedAt;
@@ -85,25 +94,6 @@ public class NewsResponse implements Serializable {
      * 생성 시간 (DB 저장 시간)
      */
     private LocalDateTime createdAt;
-    
-    /**
-     * 감정 분석 결과를 한글로 반환
-     * 
-     * 프론트엔드에서 사용하기 편하도록 추가
-     */
-    public String getSentimentLabel() {
-        if (sentimentScore == null) {
-            return "분석 전";
-        }
-        
-        double score = sentimentScore.doubleValue();
-        
-        if (score >= 0.7) return "매우 긍정적";
-        if (score >= 0.3) return "긍정적";
-        if (score >= -0.3) return "중립";
-        if (score >= -0.7) return "부정적";
-        return "매우 부정적";
-    }
     
     /**
      * 사용 예시

@@ -201,6 +201,7 @@ public class SecurityConfig {
 
                         // === 뉴스: 조회는 인증된 사용자 모두, CUD는 ADMIN만 ===
                         .requestMatchers(HttpMethod.GET, "/api/v1/news/**").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/news/*/view").authenticated()  // 조회수 증가는 인증된 사용자 모두
                         .requestMatchers(HttpMethod.POST, "/api/v1/news/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/v1/news/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/news/**").hasRole("ADMIN")

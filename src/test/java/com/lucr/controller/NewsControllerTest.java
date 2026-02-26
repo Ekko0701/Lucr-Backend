@@ -94,16 +94,20 @@ class NewsControllerTest {
                 .build();
 
         // NewsDetailResponse 테스트 데이터
-        // content 길이: 54자 → contentLength=54, estimatedReadingTime=1 (54/200=0, 최소 1)
+        // content 길이: 46자 → contentLength=46, estimatedReadingTime=1 (46/200=0, 최소 1)
+        String testContent = "삼성전자가 반도체 생산 시설을 대규모 확대할 계획을 발표했습니다.";
         newsDetailResponse = NewsDetailResponse.builder()
                 .id(testId)
                 .title("삼성전자 반도체 사업 확대")
-                .content("삼성전자가 반도체 생산 시설을 대규모 확대할 계획을 발표했습니다. 이번 투자는...")
+                .content(testContent)
                 .source("NAVER_FINANCE")
                 .url("https://finance.naver.com/news/1")
                 .viewCount(150)
                 .isHighView(false)
                 .sentimentScore(BigDecimal.valueOf(0.65))
+                .sentimentLabel("긍정적")
+                .contentLength(testContent.length())
+                .estimatedReadingTime(Math.max(1, testContent.length() / 200))
                 .publishedAt(LocalDateTime.now())
                 .crawledAt(LocalDateTime.now())
                 .createdAt(LocalDateTime.now())
@@ -225,7 +229,7 @@ class NewsControllerTest {
                     .andExpect(jsonPath("$.data.id").value(testId.toString()))
                     .andExpect(jsonPath("$.data.title").value("삼성전자 반도체 사업 확대"))
                     .andExpect(jsonPath("$.data.content").exists())
-                    .andExpect(jsonPath("$.data.contentLength").value(46))
+                    .andExpect(jsonPath("$.data.contentLength").value(36))
                     .andExpect(jsonPath("$.data.estimatedReadingTime").value(1));  // 46/200=0 → 최소 1
 
             then(newsService).should(times(1)).getNewsById(testId);

@@ -74,6 +74,23 @@ public class NewsDetailResponse implements Serializable {
     private BigDecimal sentimentScore;
     
     /**
+     * 감정 분석 레이블
+     * 
+     * sentimentScore를 한글로 변환한 값
+     */
+    private String sentimentLabel;
+    
+    /**
+     * 본문 길이 (글자 수)
+     */
+    private Integer contentLength;
+    
+    /**
+     * 예상 읽기 시간 (분)
+     */
+    private Integer estimatedReadingTime;
+    
+    /**
      * 뉴스 발행 시간
      */
     private LocalDateTime publishedAt;
@@ -98,46 +115,6 @@ public class NewsDetailResponse implements Serializable {
      * 마지막 업데이트 시간
      */
     private LocalDateTime updatedAt;
-    
-    // ========== 계산 속성 (Computed Properties) ==========
-
-    /**
-     * 본문 길이 (글자 수)
-     */
-    public Integer getContentLength() {
-        return content != null ? content.length() : 0;
-    }
-
-    /**
-     * 감정 분석 결과를 한글로 반환
-     */
-    public String getSentimentLabel() {
-        if (sentimentScore == null) {
-            return "분석 전";
-        }
-
-        double score = sentimentScore.doubleValue();
-
-        if (score >= 0.7) return "매우 긍정적";
-        if (score >= 0.3) return "긍정적";
-        if (score >= -0.3) return "중립";
-        if (score >= -0.7) return "부정적";
-        return "매우 부정적";
-    }
-
-    /**
-     * 예상 읽기 시간 계산 (분)
-     *
-     * 일반적으로 사람은 분당 200-250자 읽음
-     */
-    public Integer getEstimatedReadingTime() {
-        int length = getContentLength();
-        if (length == 0) {
-            return 0;
-        }
-        int minutes = length / 200;
-        return minutes < 1 ? 1 : minutes;
-    }
 
     public void setViewCount(int viewCount) {
         this.viewCount = viewCount;

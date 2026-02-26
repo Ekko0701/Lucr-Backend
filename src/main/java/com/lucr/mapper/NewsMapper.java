@@ -95,6 +95,9 @@ public class NewsMapper {
         // 본문 요약 (100자 + "...")
         String contentSummary = createContentSummary(entity.getContent());
         
+        // 감정 점수를 한글 레이블로 변환
+        String sentimentLabel = convertSentimentToLabel(entity.getSentimentScore());
+        
         return NewsResponse.builder()
                 .id(entity.getId())
                 .title(entity.getTitle())
@@ -104,6 +107,7 @@ public class NewsMapper {
                 .viewCount(entity.getViewCount())
                 .isHighView(entity.getIsHighView())
                 .sentimentScore(entity.getSentimentScore())
+                .sentimentLabel(sentimentLabel)
                 .publishedAt(entity.getPublishedAt())
                 .createdAt(entity.getCreatedAt())
                 .build();
@@ -121,7 +125,17 @@ public class NewsMapper {
      * @return NewsDetailResponse DTO
      */
     public NewsDetailResponse toDetailResponse(News entity) {
-        // contentLength, sentimentLabel, estimatedReadingTime은 DTO에서 자동 계산
+        // 감정 점수를 한글 레이블로 변환
+        String sentimentLabel = convertSentimentToLabel(entity.getSentimentScore());
+        
+        // 본문 길이 계산
+        Integer contentLength = entity.getContent() != null ? entity.getContent().length() : 0;
+        
+        // 예상 읽기 시간 계산 (분)
+        Integer estimatedReadingTime = contentLength > 0 
+            ? Math.max(1, contentLength / 200) 
+            : 0;
+        
         return NewsDetailResponse.builder()
                 .id(entity.getId())
                 .title(entity.getTitle())
@@ -131,6 +145,9 @@ public class NewsMapper {
                 .viewCount(entity.getViewCount())
                 .isHighView(entity.getIsHighView())
                 .sentimentScore(entity.getSentimentScore())
+                .sentimentLabel(sentimentLabel)
+                .contentLength(contentLength)
+                .estimatedReadingTime(estimatedReadingTime)
                 .publishedAt(entity.getPublishedAt())
                 .crawledAt(entity.getCrawledAt())
                 .createdAt(entity.getCreatedAt())
@@ -158,6 +175,26 @@ public class NewsMapper {
         }
         
         return content.substring(0, 100) + "...";
+    }
+    
+    /**
+     * 감정 점수를 한글 레이블로 변환
+     * 
+     * @param sentimentScore 감정 분석 점수 (-1.0 ~ 1.0)
+     * @return 한글 레이블 ("분석 전", "매우 긍정적", etc.)
+     */
+    private String convertSentimentToLabel(java.math.BigDecimal sentimentScore) {
+        if (sentimentScore == null) {
+            return "분석 전";
+        }
+        
+        double score = sentimentScore.doubleValue();
+        
+        if (score >= 0.7) return "매우 긍정적";
+        if (score >= 0.3) return "긍정적";
+        if (score >= -0.3) return "중립";
+        if (score >= -0.7) return "부정적";
+        return "매우 부정적";
     }
     
     /**
