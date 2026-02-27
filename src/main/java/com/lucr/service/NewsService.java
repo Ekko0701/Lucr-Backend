@@ -8,7 +8,6 @@ import com.lucr.dto.response.NewsResponse;
 import com.lucr.dto.response.PageResponse;
 import org.springframework.data.domain.Pageable;
 
-import java.util.List;
 import java.util.UUID;
 
 /**
@@ -28,13 +27,14 @@ public interface NewsService {
     NewsDetailResponse createNews(NewsCreateRequest request);
 
     /**
-     * 뉴스 ID로 단건 조회 (상세 정보)
+     * 뉴스 ID로 단건 조회 (상세 정보 + 조회수 자동 기록)
      *
-     * @param id 뉴스 ID
+     * @param id        뉴스 ID
+     * @param viewerKey 로그인 시 "user:{userId}", 비로그인 시 "ip:{IP}"
      * @return 뉴스 상세 정보
      * @throws RuntimeException 뉴스를 찾을 수 없는 경우
      */
-    NewsDetailResponse getNewsById(UUID id);
+    NewsDetailResponse getNewsById(UUID id, String viewerKey);
 
     /**
      * 뉴스 목록 조회 (페이징)
@@ -69,15 +69,6 @@ public interface NewsService {
      * @return 검색 결과 페이징 목록
      */
     PageResponse<NewsResponse> searchNews(NewsSearchRequest searchRequest);
-
-    /**
-     * 뉴스 조회수 증가
-     *
-     * @param id 뉴스 ID
-     * @return 조회수가 증가된 뉴스 상세 정보
-     * @throws RuntimeException 뉴스를 찾을 수 없는 경우
-     */
-    NewsDetailResponse incrementViewCount(UUID id);
 
     /**
      * 인기 뉴스 목록 조회 (조회수 높은 순)

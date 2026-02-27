@@ -9,6 +9,7 @@ import com.lucr.dto.response.NewsResponse;
 import com.lucr.dto.response.PageResponse;
 import com.lucr.service.NewsService;
 import io.swagger.v3.oas.annotations.Parameter;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +19,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -60,16 +63,20 @@ public class NewsController {
     }
 
     /**
-     * 뉴스 단건 조회 (상세 정보)
+     * 뉴스 단건 조회 (상세 정보 + 조회수 자동 기록)
      *
-     * @param id 뉴스 ID
+     * @param id      뉴스 ID
+     * @param request HTTP 요청 (IP, 인증 정보 추출용)
      * @return 200 OK + 뉴스 상세 정보
      */
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<NewsDetailResponse>> getNews(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<NewsDetailResponse>> getNews(
+            @PathVariable UUID id,
+            HttpServletRequest request) {
         log.info("뉴스 조회 요청: id={}", id);
 
-        NewsDetailResponse data = newsService.getNewsById(id);
+        String viewerKey = extractViewerKey(request);
+        NewsDetailResponse data = newsService.getNewsById(id, viewerKey);
 
         log.info("뉴스 조회 완료: id={}, title={}", data.getId(), data.getTitle());
         return ResponseEntity.ok(ApiResponse.success(data));
@@ -237,27 +244,6 @@ public class NewsController {
         return ResponseEntity.ok(ApiResponse.success(data));
     }
 
-    // ========== 특수 기능 엔드포인트 ==========
-
-    /**
-     * 조회수 증가
-     *
-     * 클라이언트가 뉴스 클릭 시 호출
-     * - 조회수 증가 + 상세 정보 반환 (1번의 요청으로 처리)
-     *
-     * @param id 뉴스 ID
-     * @return 200 OK + 조회수가 증가된 뉴스 상세 정보
-     */
-    @PostMapping("/{id}/view")
-    public ResponseEntity<ApiResponse<NewsDetailResponse>> incrementViewCount(@PathVariable UUID id) {
-        log.info("조회수 증가 요청: id={}", id);
-
-        NewsDetailResponse data = newsService.incrementViewCount(id);
-
-        log.info("조회수 증가 완료: id={}, newCount={}", data.getId(), data.getViewCount());
-        return ResponseEntity.ok(ApiResponse.success(data));
-    }
-
     /**
      * URL 중복 확인
      *
@@ -276,5 +262,27 @@ public class NewsController {
 
         log.info("URL 중복 확인 완료: url={}, exists={}", url, exists);
         return ResponseEntity.ok(ApiResponse.success(message, exists));
+    }
+
+    // ========== 내부 헬퍼 ==========
+
+    /**
+     * 조회 주체 키 추출
+     *
+     * <p>로그인 사용자면 "user:{username}", 비로그인이면 "ip:{IP}"를 반환한다.</p>
+     */
+    private String extractViewerKey(HttpServletRequest request) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.isAuthenticated()
+                && !"anonymousUser".equals(auth.getPrincipal())) {
+            return "user:" + auth.getName();
+        }
+        String ip = request.getHeader("X-Forwarded-For");
+        if (ip != null && !ip.isEmpty()) {
+            ip = ip.split(",")[0].trim();
+        } else {
+            ip = request.getRemoteAddr();
+        }
+        return "ip:" + ip;
     }
 }

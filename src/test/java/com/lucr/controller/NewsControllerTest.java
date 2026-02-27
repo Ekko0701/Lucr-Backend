@@ -214,10 +214,10 @@ class NewsControllerTest {
 
         @Test
         @WithMockUser
-        @DisplayName("성공 - 뉴스 상세 조회")
+        @DisplayName("성공 - 뉴스 상세 조회 (viewerKey 자동 추출)")
         void getNews_Success() throws Exception {
-            // given
-            given(newsService.getNewsById(testId)).willReturn(newsDetailResponse);
+            // given: 두 번째 파라미터(viewerKey)는 any(String.class) 매처 사용
+            given(newsService.getNewsById(eq(testId), any(String.class))).willReturn(newsDetailResponse);
 
             // when & then
             mockMvc.perform(
@@ -230,9 +230,9 @@ class NewsControllerTest {
                     .andExpect(jsonPath("$.data.title").value("삼성전자 반도체 사업 확대"))
                     .andExpect(jsonPath("$.data.content").exists())
                     .andExpect(jsonPath("$.data.contentLength").value(36))
-                    .andExpect(jsonPath("$.data.estimatedReadingTime").value(1));  // 46/200=0 → 최소 1
+                    .andExpect(jsonPath("$.data.estimatedReadingTime").value(1));
 
-            then(newsService).should(times(1)).getNewsById(testId);
+            then(newsService).should(times(1)).getNewsById(eq(testId), any(String.class));
         }
 
         @Test
@@ -241,7 +241,7 @@ class NewsControllerTest {
         void getNews_NotFound() throws Exception {
             // given
             UUID nonExistentId = UUID.randomUUID();
-            given(newsService.getNewsById(nonExistentId))
+            given(newsService.getNewsById(eq(nonExistentId), any(String.class)))
                     .willThrow(ResourceNotFoundException.newsNotFound(nonExistentId.toString()));
 
             // when & then
@@ -250,7 +250,7 @@ class NewsControllerTest {
                     .andExpect(jsonPath("$.code").exists())
                     .andExpect(jsonPath("$.message").exists());
 
-            then(newsService).should(times(1)).getNewsById(nonExistentId);
+            then(newsService).should(times(1)).getNewsById(eq(nonExistentId), any(String.class));
         }
     }
 
@@ -647,39 +647,6 @@ class NewsControllerTest {
                     .andExpect(jsonPath("$.data.content").isArray());
 
             then(newsService).should(times(1)).getNewsBySource(eq(source), any(Pageable.class));
-        }
-    }
-
-    // ========== POST /api/v1/news/{id}/view - 조회수 증가 ==========
-
-    @Nested
-    @DisplayName("POST /api/v1/news/{id}/view - incrementViewCount()")
-    class IncrementViewCountTests {
-
-        @Test
-        @WithMockUser
-        @DisplayName("성공 - 조회수 증가")
-        void incrementViewCount_Success() throws Exception {
-            // given
-            NewsDetailResponse updatedNews = NewsDetailResponse.builder()
-                    .id(testId)
-                    .title("삼성전자 반도체 사업 확대")
-                    .content("...")
-                    .source("NAVER_FINANCE")
-                    .url("https://finance.naver.com/news/1")
-                    .viewCount(151)  // 증가됨
-                    .isHighView(false)
-                    .build();
-
-            given(newsService.incrementViewCount(testId)).willReturn(updatedNews);
-
-            // when & then
-            mockMvc.perform(post("/api/v1/news/{id}/view", testId))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.success").value(true))
-                    .andExpect(jsonPath("$.data.viewCount").value(151));
-
-            then(newsService).should(times(1)).incrementViewCount(testId);
         }
     }
 

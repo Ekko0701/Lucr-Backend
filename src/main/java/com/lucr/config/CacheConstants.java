@@ -62,4 +62,13 @@ public final class CacheConstants {
 
     /** 조회수 Redis 키 프리픽스 */
     public static final String VIEW_COUNT_PREFIX = "news:viewcount:";
+
+    /** DB 동기화 기준값 Redis 키 프리픽스 */
+    public static final String VIEW_COUNT_DB_PREFIX = "news:dbcount:";
+
+    /** 중복 방지 Redis 키 프리픽스 */
+    public static final String VIEW_COUNT_VIEWED_PREFIX = "news:viewed:";
+
+    /** 중복 방지 TTL: 24시간 */
+    public static final long VIEW_DEDUP_TTL_SECONDS = 86_400;
 }

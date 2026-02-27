@@ -32,6 +32,8 @@ import org.springframework.data.redis.core.RedisTemplate;
 
 import java.util.concurrent.TimeUnit;
 
+import static com.lucr.config.CacheConstants.VIEW_COUNT_DB_PREFIX;
+
 /**
  * 뉴스 비즈니스 로직 서비스 구현체
  * 
@@ -85,119 +87,61 @@ public class NewsServiceImpl implements NewsService {
     }
 
     /**
-     * 뉴스 ID로 단건 조회 (상세 정보)
-     * 
-     * 통합 API: 조회 + 조회수 자동 증가 + 실시간 조회수 반영
-     * 
-     * 동작 흐름:
-     * 1. 수동으로 캐시 확인 (Redis GET)
-     * 2. 캐시 미스면 DB 조회 (캐시 히트면 DB 조회 안 함!)
-     * 3. Redis INCR로 조회수 자동 증가 (캐시 히트여도 실행!)
-     * 4. 실시간 조회수 계산 (캐시된 DB view_count + Redis)
-     * 5. 캐시 저장 (미스였으면)
-     * 
-     * 캐싱 전략 (수동):
-     * - key: "news::UUID"
-     * - TTL: 5분
-     * - 캐시 히트여도 조회수 증가는 항상 실행
-     * - viewCount는 항상 실시간으로 재계산
-     * - 캐시 히트: DB 조회 안 함 (성능 최적화)
-     * 
-     * 조회수 관리:
-     * - Redis INCR: 조회마다 자동 증가 (Thread-Safe)
-     * - Redis 키: "news:viewcount:UUID"
-     * - 실시간 조회수 = 캐시된 DB view_count + Redis 증가분
-     * - 스케줄러가 5분마다 Redis → DB 동기화
-     * 
-     * 성능:
-     * - 캐시 히트: ~7ms (Redis GET + INCR + GET) - DB 조회 없음!
-     * - 캐시 미스: ~54ms (DB SELECT + Redis INCR + GET + SET)
-     * 
-     * @param id 조회할 뉴스 ID
+     * 뉴스 ID로 단건 조회 (상세 정보 + 조회수 자동 기록)
+     *
+     * <p>콘텐츠 캐시와 조회수를 분리하여 관리한다.</p>
+     * <ol>
+     *   <li>콘텐츠 캐시 조회 (news::UUID)</li>
+     *   <li>캐시 미스 시 DB 조회 + dbcount 초기화 (SET NX) + 콘텐츠 캐시 저장</li>
+     *   <li>중복 방지 + 조회수 증가 (항상 실행)</li>
+     *   <li>실시간 조회수 반영 (dbcount + Redis 증가분)</li>
+     * </ol>
+     *
+     * @param id        조회할 뉴스 ID
+     * @param viewerKey 로그인 시 "user:{userId}", 비로그인 시 "ip:{IP}"
      * @return 뉴스 상세 정보 (실시간 조회수 포함)
      * @throws ResourceNotFoundException 뉴스를 찾을 수 없는 경우
      */
     @Override
-    public NewsDetailResponse getNewsById(UUID id) {
+    public NewsDetailResponse getNewsById(UUID id, String viewerKey) {
         log.debug("뉴스 조회 요청: id={}", id);
 
-        // ========== 1. 수동 캐시 확인 ==========
+        // ① 콘텐츠 캐시 조회
         String cacheKey = CacheConstants.NEWS + "::" + id;
-        NewsDetailResponse cachedResponse = null;
-        boolean isCacheMiss = false;
-        
+        NewsDetailResponse response = null;
         try {
-            cachedResponse = (NewsDetailResponse) redisTemplate.opsForValue().get(cacheKey);
-            isCacheMiss = (cachedResponse == null);
-            
-            if (cachedResponse != null) {
-                log.debug("캐시 히트: id={}", id);
-            } else {
-                log.debug("캐시 미스: id={}", id);
-            }
+            response = (NewsDetailResponse) redisTemplate.opsForValue().get(cacheKey);
         } catch (Exception e) {
             log.warn("캐시 조회 실패, DB 조회로 진행: id={}", id, e);
-            isCacheMiss = true;
         }
 
-        // ========== 2. DB 조회 (캐시 미스 시에만) ==========
-        News news = null;
-        int dbViewCount = 0;
-        
-        if (isCacheMiss) {
-            // 캐시 미스: DB에서 전체 뉴스 조회
-            news = newsRepository.findById(id)
-                    .orElseThrow(() -> {
-                        log.error("뉴스를 찾을 수 없음: id={}", id);
-                        return ResourceNotFoundException.newsNotFound(id.toString());
-                    });
-            dbViewCount = news.getViewCount();
-            log.debug("DB 조회 완료: id={}, dbViewCount={}", id, dbViewCount);
-        } else {
-            // 캐시 히트: DB 조회 안 함, 캐시된 응답에서 viewCount 추출
-            // 캐시된 viewCount는 이전 실시간 조회수이지만,
-            // 스케줄러 동기화 후이므로 대략적인 DB view_count로 사용 가능
-            dbViewCount = cachedResponse.getViewCount();
-            log.debug("캐시된 viewCount 사용: id={}, cachedViewCount={}", id, dbViewCount);
-        }
-
-        // ========== 3. 조회수 자동 증가 (항상 실행) ==========
-        // 캐시 히트여도 조회수는 증가해야 함!
-        viewCountService.incrementViewCount(id);
-        log.debug("조회수 자동 증가: id={}", id);
-
-        // ========== 4. 응답 생성 ==========
-        NewsDetailResponse response;
-        if (isCacheMiss) {
-            // 캐시 미스: 새로 DTO 생성
+        if (response == null) {
+            // ② 캐시 미스: DB 조회
+            News news = newsRepository.findById(id)
+                    .orElseThrow(() -> ResourceNotFoundException.newsNotFound(id.toString()));
             response = newsMapper.toDetailResponse(news);
-        } else {
-            // 캐시 히트: 캐시된 응답 사용
-            response = cachedResponse;
-        }
 
-        // ========== 5. 실시간 조회수 반영 (항상 실행) ==========
-        // 캐시된(또는 DB) 조회수 + Redis 증가분 = 실시간 조회수
-        long realViewCount = viewCountService.getViewCount(id, dbViewCount);
-        response.setViewCount((int) realViewCount);
+            // ③ dbcount 초기화 (최초 1회, SET NX — 동시 요청 안전)
+            redisTemplate.opsForValue()
+                    .setIfAbsent(VIEW_COUNT_DB_PREFIX + id, (long) news.getViewCount());
 
-        log.debug("실시간 조회수 반영: id={}, 기준={}, Redis증가분={}, 실시간={}", 
-                id, dbViewCount, realViewCount - dbViewCount, realViewCount);
-
-        // ========== 6. 캐시 저장 (캐시 미스였으면) ==========
-        if (isCacheMiss) {
+            // ④ 콘텐츠 캐시 저장 (viewCount가 포함되어 저장되지만, ⑥번에서 항상 실시간 값으로 덮어쓰므로 무시됨)
             try {
-                redisTemplate.opsForValue().set(
-                        cacheKey, 
-                        response, 
-                        CacheConstants.NEWS_TTL_SECONDS, 
-                        TimeUnit.SECONDS
-                );
-                log.debug("캐시 저장 완료: id={}, TTL={}초", id, CacheConstants.NEWS_TTL_SECONDS);
+                redisTemplate.opsForValue().set(cacheKey, response,
+                        CacheConstants.NEWS_TTL_SECONDS, TimeUnit.SECONDS);
             } catch (Exception e) {
-                log.warn("캐시 저장 실패 (계속 진행): id={}", id, e);
+                log.warn("캐시 저장 실패: id={}", id, e);
             }
         }
+
+        // ⑤ 중복 방지 + 조회수 증가 (항상 실행, 캐시 히트여도)
+        viewCountService.recordView(id, viewerKey);
+
+        // ⑥ 실시간 조회수 반영 (dbcount + Redis 증가분)
+        long realViewCount = viewCountService.getViewCount(id);
+        response.setViewCount((int) realViewCount);
+
+        log.debug("실시간 조회수 반영: id={}, realViewCount={}", id, realViewCount);
 
         return response;
     }
@@ -315,34 +259,6 @@ public class NewsServiceImpl implements NewsService {
                 .collect(Collectors.toList());
 
         return PageResponse.of(newsPage, responses);
-    }
-
-    /**
-     * 뉴스 조회수 증가
-     */
-    @Override
-    public NewsDetailResponse incrementViewCount(UUID id) {
-        log.debug("조회수 증가 요청: id={}", id);
-
-        News news = newsRepository.findById(id)
-                .orElseThrow(() -> {
-                    log.error("뉴스를 찾을 수 없음: id={}", id);
-                    return ResourceNotFoundException.newsNotFound(id.toString());
-                });
-
-        // Redis에서 조회수 증가 (INCR) — 증가 후 Redis 누적값 반환
-        long redisIncrement = viewCountService.incrementViewCount(id);
-
-        // 응답 생성
-        NewsDetailResponse response = newsMapper.toDetailResponse(news);
-
-        // DB 조회수 + Redis 증가분 = 실시간 조회수
-        // incrementViewCount()가 이미 INCR 후의 누적값을 반환하므로 추가 GET 호출 불필요
-        response.setViewCount((int)(news.getViewCount() + redisIncrement));
-
-        log.debug("조회수 증가 완료: id={}, viewCount={}", id, response.getViewCount());
-
-        return response;
     }
 
     /**

@@ -1,5 +1,6 @@
 package com.lucr.service;
 
+import com.lucr.config.CacheConstants;
 import com.lucr.repository.NewsRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -13,6 +14,7 @@ import static com.lucr.config.CacheConstants.VIEW_COUNT_PREFIX;
 @Service
 @RequiredArgsConstructor
 public class ViewCountSyncHelper {
+
     private final RedisTemplate<String, Object> redisTemplate;
     private final NewsRepository newsRepository;
 
@@ -27,12 +29,18 @@ public class ViewCountSyncHelper {
         UUID newsId = UUID.fromString(key.replace(VIEW_COUNT_PREFIX, ""));
 
         newsRepository.findById(newsId).ifPresent(news -> {
-            news.setViewCount(news.getViewCount() + (int) increment);
+            int newViewCount = news.getViewCount() + (int) increment;
+            news.setViewCount(newViewCount);
             newsRepository.saveAndFlush(news);
+
+            // ① DB 기준값 갱신 → 다음 getViewCount() 호출 시 정확한 합산
+            redisTemplate.opsForValue().set(CacheConstants.VIEW_COUNT_DB_PREFIX + newsId, (long) newViewCount);
+
+            // ② 콘텐츠 캐시 무효화 → stale viewCount 방지
+            redisTemplate.delete(CacheConstants.NEWS + "::" + newsId);
         });
 
-        // 트랜잭션 커밋 완료 후 Redis 삭제 → 유실 없음
-        // (saveAndFlush 예외 시 여기까지 오지 않음 → Redis 보존)
+        // 증가분 버퍼 초기화 (DB 커밋 완료 후)
         redisTemplate.delete(key);
     }
 }
