@@ -23,6 +23,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -57,9 +59,14 @@ class NewsServiceTest {
     @Mock
     private NewsMapper newsMapper;
 
-    // ViewCountService Mock — incrementViewCount() 내부에서 Redis INCR 위임
     @Mock
     private ViewCountService viewCountService;
+    
+    @Mock
+    private RedisTemplate<String, Object> redisTemplate;
+    
+    @Mock
+    private ValueOperations<String, Object> valueOperations;
 
     @InjectMocks
     private NewsServiceImpl newsService;
@@ -108,7 +115,6 @@ class NewsServiceTest {
                 .build();
 
         // 테스트용 DetailResponse
-        // contentLength, sentimentLabel, estimatedReadingTime은 DTO에서 자동 계산
         detailResponse = NewsDetailResponse.builder()
                 .id(testId)
                 .title("삼성전자 주가 상승")
@@ -234,34 +240,113 @@ class NewsServiceTest {
     // ========== 2. getNewsById() 테스트 ==========
 
     @Nested
-    @DisplayName("getNewsById() - ID로 뉴스 조회")
+    @DisplayName("getNewsById() - 수동 캐싱 + 조회수 자동 증가")
     class GetNewsByIdTests {
 
         @Test
-        @DisplayName("정상 조회 - 성공")
-        void getNewsById_Success() {
-            // given: 뉴스가 존재함
+        @DisplayName("캐시 미스 - 정상 조회 + 캐시 저장")
+        void getNewsById_CacheMiss_Success() {
+            // given: RedisTemplate Mock 설정
+            given(redisTemplate.opsForValue()).willReturn(valueOperations);
+            
+            // given: 캐시 없음 (캐시 미스)
+            given(valueOperations.get(anyString())).willReturn(null);
             given(newsRepository.findById(testId)).willReturn(Optional.of(testNews));
+            given(viewCountService.incrementViewCount(testId)).willReturn(1L);
+            given(viewCountService.getViewCount(testId, 1500)).willReturn(1501L);
             given(newsMapper.toDetailResponse(testNews)).willReturn(detailResponse);
 
             // when: ID로 조회
             NewsDetailResponse result = newsService.getNewsById(testId);
 
-            // then: DetailResponse 반환
+            // then 1: 응답 확인
             assertThat(result).isNotNull();
             assertThat(result.getId()).isEqualTo(testId);
-            assertThat(result.getTitle()).isEqualTo(testNews.getTitle());
+            assertThat(result.getViewCount()).isEqualTo(1501);
 
-            // Mock 호출 검증
-            then(newsRepository).should(times(1)).findById(testId);
-            then(newsMapper).should(times(1)).toDetailResponse(testNews);
+            // then 2: Mock 호출 검증
+            then(valueOperations).should(times(1)).get(anyString()); // 캐시 조회
+            then(newsRepository).should(times(1)).findById(testId); // DB 조회
+            then(viewCountService).should(times(1)).incrementViewCount(testId); // 조회수 증가
+            then(viewCountService).should(times(1)).getViewCount(testId, 1500); // 실시간 조회수
+            then(newsMapper).should(times(1)).toDetailResponse(testNews); // DTO 생성
+            then(valueOperations).should(times(1)).set(anyString(), any(), anyLong(), any()); // 캐시 저장
+        }
+
+        @Test
+        @DisplayName("캐시 히트 - 조회수 증가는 실행됨")
+        void getNewsById_CacheHit_StillIncrementsViewCount() {
+            // given: RedisTemplate Mock 설정
+            given(redisTemplate.opsForValue()).willReturn(valueOperations);
+            
+            // given: 캐시 있음 (캐시 히트)
+            given(valueOperations.get(anyString())).willReturn(detailResponse);
+            given(viewCountService.incrementViewCount(testId)).willReturn(11L);
+            given(viewCountService.getViewCount(testId, 1500)).willReturn(1511L);
+
+            // when: ID로 조회
+            NewsDetailResponse result = newsService.getNewsById(testId);
+
+            // then 1: 캐시된 응답 반환
+            assertThat(result).isNotNull();
+
+            // then 2: 실시간 조회수 반영
+            assertThat(result.getViewCount()).isEqualTo(1511);
+
+            // then 3: 조회수 증가는 실행됨
+            then(valueOperations).should(times(1)).get(anyString());
+            then(viewCountService).should(times(1)).incrementViewCount(testId); // ✅ 실행됨
+            then(viewCountService).should(times(1)).getViewCount(testId, 1500);
+            then(newsMapper).should(never()).toDetailResponse(any()); // DTO 변환 안 함
+            then(valueOperations).should(never()).set(anyString(), any(), anyLong(), any()); // 캐시 저장 안 함
+        }
+
+        @Test
+        @DisplayName("동시 조회 시 조회수는 모두 카운팅됨")
+        void getNewsById_ConcurrentRequests_AllCounted() throws Exception {
+            // given: RedisTemplate Mock 설정
+            given(redisTemplate.opsForValue()).willReturn(valueOperations);
+            
+            // given: 캐시 히트 (단순화를 위해 고정 응답)
+            given(valueOperations.get(anyString())).willReturn(detailResponse);
+            given(viewCountService.incrementViewCount(testId)).willReturn(1L);
+            given(viewCountService.getViewCount(eq(testId), eq(1500))).willReturn(1501L);
+
+            // when: 100번 동시 호출
+            java.util.concurrent.ExecutorService executor = 
+                    java.util.concurrent.Executors.newFixedThreadPool(10);
+            java.util.concurrent.CountDownLatch latch = 
+                    new java.util.concurrent.CountDownLatch(100);
+            
+            for (int i = 0; i < 100; i++) {
+                executor.submit(() -> {
+                    try {
+                        newsService.getNewsById(testId);
+                    } finally {
+                        latch.countDown();
+                    }
+                });
+            }
+            
+            latch.await(10, java.util.concurrent.TimeUnit.SECONDS);
+            executor.shutdown();
+
+            // then: incrementViewCount가 정확히 100번 호출됨 (증가분은 Redis가 관리)
+            then(viewCountService).should(times(100)).incrementViewCount(testId);
+            
+            // then: 캐시 히트이므로 DB 조회 없음
+            then(newsRepository).should(never()).findById(testId);
         }
 
         @Test
         @DisplayName("존재하지 않는 ID - ResourceNotFoundException")
         void getNewsById_NotFound_ThrowsException() {
-            // given: 뉴스가 존재하지 않음
+            // given: RedisTemplate Mock 설정
+            given(redisTemplate.opsForValue()).willReturn(valueOperations);
+            
+            // given: 캐시 없음 + 뉴스도 없음
             UUID nonExistentId = UUID.randomUUID();
+            given(valueOperations.get(anyString())).willReturn(null);
             given(newsRepository.findById(nonExistentId)).willReturn(Optional.empty());
 
             // when & then: ResourceNotFoundException 발생
@@ -269,22 +354,63 @@ class NewsServiceTest {
                     .isInstanceOf(ResourceNotFoundException.class)
                     .hasMessageContaining("뉴스를 찾을 수 없습니다");
 
-            // Mapper는 호출되지 않아야 함
+            // then: 뉴스가 없으므로 조회수 증가 및 Mapper 호출 안 됨
+            then(viewCountService).should(never()).incrementViewCount(any());
+            then(viewCountService).should(never()).getViewCount(any(), anyInt());
             then(newsMapper).should(never()).toDetailResponse(any());
         }
 
         @Test
-        @DisplayName("Mapper 호출 검증")
-        void getNewsById_CallsMapper() {
-            // given
+        @DisplayName("캐시 조회 실패 - DB 조회로 진행")
+        void getNewsById_CacheFailure_FallbackToDB() {
+            // given: RedisTemplate Mock 설정
+            given(redisTemplate.opsForValue()).willReturn(valueOperations);
+            
+            // given: 캐시 조회 시 예외 발생
+            given(valueOperations.get(anyString())).willThrow(new RuntimeException("Redis connection failed"));
             given(newsRepository.findById(testId)).willReturn(Optional.of(testNews));
+            given(viewCountService.incrementViewCount(testId)).willReturn(1L);
+            given(viewCountService.getViewCount(testId, 1500)).willReturn(1501L);
             given(newsMapper.toDetailResponse(testNews)).willReturn(detailResponse);
 
-            // when
-            newsService.getNewsById(testId);
+            // when: 조회 시도
+            NewsDetailResponse result = newsService.getNewsById(testId);
 
-            // then: Mapper.toDetailResponse()가 정확히 호출됨
-            then(newsMapper).should(times(1)).toDetailResponse(testNews);
+            // then: 정상 응답
+            assertThat(result).isNotNull();
+            assertThat(result.getViewCount()).isEqualTo(1501);
+
+            // then: DB 조회는 정상 실행
+            then(newsRepository).should(times(1)).findById(testId);
+            then(viewCountService).should(times(1)).incrementViewCount(testId);
+        }
+
+        @Test
+        @DisplayName("캐시 저장 실패 - 계속 진행")
+        void getNewsById_CacheSaveFailure_ContinuesExecution() {
+            // given: RedisTemplate Mock 설정
+            given(redisTemplate.opsForValue()).willReturn(valueOperations);
+            
+            // given: 캐시 저장 시 예외 발생
+            given(valueOperations.get(anyString())).willReturn(null);
+            given(newsRepository.findById(testId)).willReturn(Optional.of(testNews));
+            given(viewCountService.incrementViewCount(testId)).willReturn(1L);
+            given(viewCountService.getViewCount(testId, 1500)).willReturn(1501L);
+            given(newsMapper.toDetailResponse(testNews)).willReturn(detailResponse);
+            
+            willThrow(new RuntimeException("Redis save failed"))
+                    .given(valueOperations).set(anyString(), any(), anyLong(), any());
+
+            // when: 조회 시도
+            NewsDetailResponse result = newsService.getNewsById(testId);
+
+            // then: 정상 응답 (캐시 저장 실패해도 계속 진행)
+            assertThat(result).isNotNull();
+            assertThat(result.getViewCount()).isEqualTo(1501);
+
+            // then: 모든 로직은 정상 실행됨
+            then(newsRepository).should(times(1)).findById(testId);
+            then(viewCountService).should(times(1)).incrementViewCount(testId);
         }
     }
 
