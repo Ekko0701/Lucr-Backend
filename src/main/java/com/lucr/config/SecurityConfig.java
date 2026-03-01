@@ -4,6 +4,7 @@ import com.lucr.security.JwtAccessDeniedHandler;
 import com.lucr.security.JwtAuthenticationEntryPoint;
 import com.lucr.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -21,6 +22,11 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.List;
 
 /**
  * Spring Security 설정 — JWT 인증 + 역할 기반 접근 제어 (RBAC)
@@ -78,6 +84,10 @@ public class SecurityConfig {
     /** 접근 거부 핸들러 — 403 Forbidden JSON 응답 */
     private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
 
+    /** CORS 허용 Origin 목록 — application.yml에서 주입 */
+    @Value("${cors.allowed-origins:http://localhost:3000}")
+    private String allowedOrigins;
+
     /**
      * JwtAuthenticationFilter의 Servlet 필터 자동 등록 비활성화
      *
@@ -103,6 +113,54 @@ public class SecurityConfig {
                 new FilterRegistrationBean<>(jwtAuthenticationFilter);
         registration.setEnabled(false);
         return registration;
+    }
+
+    /**
+     * CORS 설정 Bean — 환경별 Origin 허용 + 인증 정보 포함
+     *
+     * <p>Cross-Origin Resource Sharing을 설정하여 다른 도메인에서의 API 요청을 허용합니다.</p>
+     *
+     * <h4>환경별 설정</h4>
+     * <pre>
+     * 개발(dev):   http://localhost:3000, http://localhost:3001 (전체 허용)
+     * 운영(prod):  https://your-production-domain.com (엄격 제한)
+     * </pre>
+     *
+     * <h4>설정 항목</h4>
+     * <ul>
+     *   <li><strong>allowedOrigins</strong>: application.yml에서 환경별로 주입</li>
+     *   <li><strong>allowedMethods</strong>: GET, POST, PUT, DELETE, OPTIONS (Preflight)</li>
+     *   <li><strong>allowedHeaders</strong>: 모든 헤더 허용 (Authorization, Content-Type 등)</li>
+     *   <li><strong>allowCredentials</strong>: true (쿠키, Authorization 헤더 포함)</li>
+     *   <li><strong>maxAge</strong>: 3600초 (Preflight 응답 캐시)</li>
+     * </ul>
+     *
+     * @return CORS 설정이 적용된 CorsConfigurationSource
+     */
+    @Bean
+    CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+
+        // 1. 허용할 Origin (쉼표로 구분된 문자열을 List로 변환)
+        configuration.setAllowedOrigins(List.of(allowedOrigins.split(",")));
+
+        // 2. 허용할 HTTP 메서드
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+
+        // 3. 허용할 헤더 (모든 헤더 허용)
+        configuration.setAllowedHeaders(List.of("*"));
+
+        // 4. 인증 정보 포함 허용 (Authorization 헤더, 쿠키)
+        configuration.setAllowCredentials(true);
+
+        // 5. Preflight 응답 캐시 시간 (1시간)
+        configuration.setMaxAge(3600L);
+
+        // 6. 모든 경로에 CORS 설정 적용
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+
+        return source;
     }
 
     /**
@@ -146,41 +204,49 @@ public class SecurityConfig {
     }
 
     /**
-     * HTTP 보안 필터 체인 설정 — CSRF, 세션, 인가 규칙, JWT 필터, 예외 핸들러
+     * HTTP 보안 필터 체인 설정 — CSRF, CORS, 세션, 인가 규칙, JWT 필터, 예외 핸들러
      *
      * <p>모든 HTTP 요청은 이 필터 체인을 통과한 후 컨트롤러에 도달합니다.</p>
      *
      * <h4>필터 실행 순서</h4>
      * <pre>
-     * 1. JwtAuthenticationFilter (커스텀, addFilterBefore로 추가)
-     * 2. UsernamePasswordAuthenticationFilter (Spring Security 기본, 비활성화 상태)
-     * 3. ExceptionTranslationFilter (인증/인가 예외를 EntryPoint/Handler로 위임)
-     * 4. AuthorizationFilter (authorizeHttpRequests 규칙 적용)
+     * 1. CorsFilter (Spring Security가 자동 생성, cors() 설정 기반)
+     * 2. JwtAuthenticationFilter (커스텀, addFilterBefore로 추가)
+     * 3. UsernamePasswordAuthenticationFilter (Spring Security 기본, 비활성화 상태)
+     * 4. ExceptionTranslationFilter (인증/인가 예외를 EntryPoint/Handler로 위임)
+     * 5. AuthorizationFilter (authorizeHttpRequests 규칙 적용)
      * </pre>
      *
-     * @param http Spring Security가 제공하는 HttpSecurity 빌더
+     * @param http                     Spring Security가 제공하는 HttpSecurity 빌더
+     * @param corsConfigurationSource  CORS 설정 Bean (환경별 Origin 허용)
      * @return 구성 완료된 SecurityFilterChain
      */
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    SecurityFilterChain securityFilterChain(
+            HttpSecurity http,
+            CorsConfigurationSource corsConfigurationSource
+    ) throws Exception {
         http
-                // 1. CSRF 비활성화
+                // 1. CORS 설정 (환경별 Origin 허용)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource))
+
+                // 2. CSRF 비활성화
                 //    REST API는 토큰 기반 인증을 사용하므로 CSRF 보호가 불필요
                 .csrf(AbstractHttpConfigurer::disable)
 
-                // 2. 세션 관리: Stateless
+                // 3. 세션 관리: Stateless
                 //    JWT 기반 인증이므로 서버 측 세션을 사용하지 않음
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
 
-                // 3. 예외 처리 핸들러 등록
+                // 4. 예외 처리 핸들러 등록
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint(jwtAuthenticationEntryPoint)  // 401 처리
                         .accessDeniedHandler(jwtAccessDeniedHandler)            // 403 처리
                 )
 
-                // 4. 경로별 인가 규칙 (RBAC)
+                // 5. 경로별 인가 규칙 (RBAC)
                 .authorizeHttpRequests(auth -> auth
                         // === 인증 없이 접근 가능 ===
                         .requestMatchers(
@@ -215,7 +281,7 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
 
-                // 5. JWT 필터를 UsernamePasswordAuthenticationFilter 앞에 추가
+                // 6. JWT 필터를 UsernamePasswordAuthenticationFilter 앞에 추가
                 //    Spring Security 기본 폼 로그인 필터보다 먼저 JWT 인증 수행
                 .addFilterBefore(
                         jwtAuthenticationFilter,

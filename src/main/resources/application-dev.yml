@@ -1,0 +1,80 @@
+# ========================================
+# Lucr — 개발 환경 설정 (Local Docker)
+# ========================================
+# 로컬 Docker Compose로 구동되는 PostgreSQL, Redis, RabbitMQ 사용
+# 빠른 개발/테스트를 위한 느슨한 보안 설정
+#
+# 활성화: -Dspring.profiles.active=dev
+# 작성자: Kim Dongjoo
+# 작성일: 2026-02-27
+# ========================================
+
+spring:
+  # PostgreSQL (로컬 Docker)
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:lucr_db}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 5  # 개발 환경은 커넥션 풀 작게 설정
+
+  # JPA 개발 설정
+  jpa:
+    hibernate:
+      ddl-auto: update  # 스키마 자동 생성/수정 (개발 편의성)
+    show-sql: true      # SQL 쿼리 콘솔 출력
+    properties:
+      hibernate:
+        format_sql: true  # SQL 포맷팅
+        use_sql_comments: true  # JPQL 주석 포함
+
+  # Flyway 설정 (개발 환경)
+  flyway:
+    enabled: true  # 개발 환경에서는 비활성화 (ddl-auto: update로 충분)
+    # 개발 편의성을 위해 Hibernate가 스키마를 자동 관리
+    # 운영 환경에서만 Flyway를 사용하여 안전한 마이그레이션 수행
+
+  # RabbitMQ (로컬 Docker)
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER}
+    password: ${RABBITMQ_PASSWORD}
+
+  # Redis (로컬 Docker)
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+# 로깅 설정 (상세 디버깅)
+logging:
+  level:
+    com.lucr: DEBUG                                          # 애플리케이션 로그
+    org.hibernate.SQL: DEBUG                                 # SQL 쿼리
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE     # 바인딩 파라미터
+    org.springframework.security: DEBUG                      # Spring Security 디버깅
+    org.springframework.amqp: DEBUG                          # RabbitMQ 디버깅
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+# Actuator 개발 설정
+management:
+  endpoint:
+    health:
+      show-details: always  # 헬스 체크 상세 정보 항상 노출
+
+# CORS 설정 (개발 환경)
+cors:
+  allowed-origins: http://localhost:3000,http://localhost:3001,http://localhost:8080
+
+# ========================================
+# 개발 환경 특징
+# ========================================
+# ✅ ddl-auto: update → 스키마 자동 관리
+# ✅ show-sql: true → SQL 쿼리 가시성
+# ✅ DEBUG 로깅 → 문제 추적 용이
+# ✅ 작은 커넥션 풀 → 로컬 리소스 절약
+# ⚠️  CORS 전체 허용 (SecurityConfig에서 설정)
+# ========================================

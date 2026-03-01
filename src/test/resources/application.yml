@@ -32,6 +32,11 @@ spring:
         # dialect 미설정 → H2Dialect 자동 감지
     open-in-view: false
 
+  # Flyway 설정 (테스트용)
+  flyway:
+    enabled: false  # 테스트에서는 Flyway 비활성화 (ddl-auto: create-drop 사용)
+    # PostgreSQL 전용 SQL(UUID, ON DELETE CASCADE, FTS 등)을 H2에서 실행하면 오류 발생
+
   # RabbitMQ 설정 (테스트용)
   rabbitmq:
     host: localhost

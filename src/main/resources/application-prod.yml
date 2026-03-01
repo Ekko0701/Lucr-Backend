@@ -1,0 +1,132 @@
+# ========================================
+# Lucr — 운영 환경 설정 (AWS Production)
+# ========================================
+# AWS 클라우드 서비스 사용
+# - RDS (PostgreSQL)
+# - ElastiCache (Redis)
+# - Amazon MQ (RabbitMQ)
+#
+# 활성화: -Dspring.profiles.active=prod
+# 작성자: Kim Dongjoo
+# 작성일: 2026-02-27
+# ========================================
+
+spring:
+  # PostgreSQL (AWS RDS)
+  datasource:
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT:5432}/${DB_NAME}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20          # 운영 환경 커넥션 풀 (부하에 따라 조정)
+      minimum-idle: 5                # 최소 유휴 커넥션
+      connection-timeout: 30000      # 30초
+      idle-timeout: 600000           # 10분
+      max-lifetime: 1800000          # 30분
+
+  # JPA 운영 설정
+  jpa:
+    hibernate:
+      ddl-auto: validate  # 스키마 검증만 수행 (Flyway로 마이그레이션 관리)
+    show-sql: false       # 운영 환경에서는 SQL 출력 비활성화
+    properties:
+      hibernate:
+        format_sql: false
+        use_sql_comments: false
+
+  # Flyway 설정 (운영 환경)
+  flyway:
+    enabled: true  # 운영 환경에서 활성화
+    locations: classpath:db/migration  # 마이그레이션 파일 위치
+    baseline-on-migrate: false  # 처음부터 빈 DB에 Flyway 적용 (V1부터 실행)
+    validate-on-migrate: true  # 마이그레이션 실행 전 검증
+    out-of-order: false  # 순서 보장 (false 권장)
+    # Flyway가 데이터베이스 스키마 변경을 안전하게 관리
+    # ddl-auto: validate와 함께 사용하여 스키마 무결성 보장
+    # baseline-on-migrate: false → V1~V7을 처음부터 순서대로 실행
+
+  # RabbitMQ (AWS Amazon MQ)
+  rabbitmq:
+    host: ${RABBITMQ_HOST}
+    port: ${RABBITMQ_PORT:5671}  # TLS 포트
+    username: ${RABBITMQ_USER}
+    password: ${RABBITMQ_PASSWORD}
+    ssl:
+      enabled: true  # AWS Amazon MQ는 TLS 필수
+      algorithm: TLSv1.2
+
+  # Redis (AWS ElastiCache)
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}  # ElastiCache 인증 활성화 시 필요
+      ssl:
+        enabled: false  # ElastiCache는 기본적으로 TLS 비활성화 (VPC 내부 통신)
+      timeout: 2000ms   # 타임아웃 2초
+
+# 로깅 설정 (운영 환경)
+logging:
+  level:
+    com.lucr: INFO                      # 애플리케이션 로그
+    org.hibernate.SQL: WARN             # SQL 쿼리 경고만
+    org.springframework.security: WARN  # Security 경고만
+    org.springframework.amqp: WARN      # RabbitMQ 경고만
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: /var/log/lucr/application.log  # AWS EC2/ECS 로그 파일 경로
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB                # 파일당 최대 크기
+      max-history: 30                    # 최대 30일 보관
+      file-name-pattern: /var/log/lucr/application.%d{yyyy-MM-dd}.%i.log  # 롤링 파일명 패턴
+
+# Actuator 운영 설정
+management:
+  endpoint:
+    health:
+      show-details: when-authorized  # 인증된 사용자만 상세 정보 조회 가능
+  metrics:
+    export:
+      prometheus:
+        enabled: false  # Prometheus 연동 시 true로 변경
+
+# CORS 설정 (운영 환경)
+cors:
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:https://your-production-domain.com}
+
+# ========================================
+# AWS 배포 가이드
+# ========================================
+# 1. RDS 엔드포인트를 DB_HOST에 설정
+#    예: lucr-db.xxxxx.ap-northeast-2.rds.amazonaws.com
+#
+# 2. ElastiCache 엔드포인트를 REDIS_HOST에 설정
+#    예: lucr-cache.xxxxx.cache.amazonaws.com
+#
+# 3. Amazon MQ 엔드포인트를 RABBITMQ_HOST에 설정
+#    예: b-xxxxx-1.mq.ap-northeast-2.amazonaws.com
+#
+# 4. 환경 변수 설정 (AWS Systems Manager Parameter Store 권장)
+#    - DB_HOST, DB_USER, DB_PASSWORD
+#    - RABBITMQ_HOST, RABBITMQ_USER, RABBITMQ_PASSWORD
+#    - REDIS_HOST, REDIS_PASSWORD (선택)
+#    - JWT_SECRET (256비트 이상)
+#
+# 5. EC2/ECS 실행 시 프로파일 활성화:
+#    java -jar -Dspring.profiles.active=prod lucr.jar
+# ========================================
+
+# ========================================
+# 운영 환경 특징
+# ========================================
+# ✅ ddl-auto: validate → Flyway로 마이그레이션 관리
+# ✅ show-sql: false → 성능 최적화
+# ✅ INFO/WARN 로깅 → 불필요한 로그 제거
+# ✅ 커넥션 풀 최적화 → 동시 요청 처리
+# ✅ 파일 로깅 → 장애 추적 용이
+# ✅ TLS/SSL 설정 → 보안 강화
+# ⚠️  CORS 엄격 제한 (SecurityConfig에서 설정)
+# ========================================
