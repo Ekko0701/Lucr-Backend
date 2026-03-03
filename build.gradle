@@ -39,8 +39,9 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 
 	// Flyway DB Migration
-	implementation 'org.flywaydb:flyway-core'
+	// implementation 'org.flywaydb:flyway-core'
 	implementation 'org.flywaydb:flyway-database-postgresql'
+	implementation 'org.springframework.boot:spring-boot-starter-flyway'
 
 	// JWT
 	implementation 'io.jsonwebtoken:jjwt-api:0.12.6'

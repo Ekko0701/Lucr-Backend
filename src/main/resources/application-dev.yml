@@ -34,6 +34,13 @@ spring:
     enabled: true  # 개발 환경에서는 비활성화 (ddl-auto: update로 충분)
     # 개발 편의성을 위해 Hibernate가 스키마를 자동 관리
     # 운영 환경에서만 Flyway를 사용하여 안전한 마이그레이션 수행
+    #
+    # [Flyway 동작 테스트 방법]
+    # 1. enabled: true 로 변경
+    # 2. ddl-auto: none 으로 변경 (Flyway와 동시 실행 금지)
+    # 3. docker-compose down -v && docker-compose up -d  (DB 초기화 필수)
+    # 4. 앱 실행 → org.flywaydb 로그로 V1~V7 순서대로 적용 확인
+    # 5. 테스트 완료 후 원래대로 복원 (enabled: false, ddl-auto: update)
 
   # RabbitMQ (로컬 Docker)
   rabbitmq:

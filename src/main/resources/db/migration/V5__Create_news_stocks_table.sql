@@ -10,6 +10,8 @@
 CREATE TABLE news_stocks (
     news_id UUID NOT NULL,
     stock_code VARCHAR(20) NOT NULL,
+    mention_count INTEGER NOT NULL DEFAULT 1,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (news_id, stock_code)
 );
 
