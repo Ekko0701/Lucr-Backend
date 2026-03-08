@@ -3,6 +3,8 @@ package com.lucr.messaging;
 import com.lucr.entity.CrawlJob;
 import com.lucr.entity.CrawlJob.CrawlJobStatus;
 import com.lucr.messaging.CrawlResultListener.CrawlResultMessage;
+import com.lucr.repository.KeywordRepository;
+import com.lucr.repository.NewsStockRepository;
 import com.lucr.service.CrawlJobService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -48,7 +50,9 @@ import static org.mockito.BDDMockito.*;
  *
  *   CrawlResultListener (테스트 대상)
  *       ├── CrawlJobService (Mock) — markCompleted(), markFailed() 호출 검증
- *       └── ObjectMapper (Mock)    — Map → JSON 변환 검증
+ *       ├── KeywordRepository (Mock) — 분석 통계 조회(count) 검증
+ *       ├── NewsStockRepository (Mock) — 분석 통계 조회(count) 검증
+ *       └── ObjectMapper (Mock) — Map → JSON 변환 검증
  *
  * @author Ekko0701
  * @since 2026-01-28
@@ -71,6 +75,20 @@ class CrawlResultListenerTest {
      */
     @Mock
     private ObjectMapper objectMapper;
+
+    /**
+     * KeywordRepository Mock
+     * COMPLETED 처리 후 분석 통계 조회(count) 호출 검증
+     */
+    @Mock
+    private KeywordRepository keywordRepository;
+
+    /**
+     * NewsStockRepository Mock
+     * COMPLETED 처리 후 분석 통계 조회(count) 호출 검증
+     */
+    @Mock
+    private NewsStockRepository newsStockRepository;
 
     /**
      * 테스트 대상: CrawlResultListener
@@ -150,9 +168,55 @@ class CrawlResultListenerTest {
             then(crawlJobService).should(times(1))
                     .markCompleted(testJobId, 125, expectedJson);
 
+            // STEP9: 분석 통계 조회가 함께 실행되어야 함
+            then(keywordRepository).should(times(1)).count();
+            then(newsStockRepository).should(times(1)).count();
+
             // markFailed()는 호출되지 않아야 함
             then(crawlJobService).should(never())
                     .markFailed(any(), anyString());
+        }
+
+        /**
+         * STEP9 보강 케이스:
+         * 통계 조회 중 예외가 나더라도(예: 일시적 DB 문제)
+         * 메인 완료 처리(markCompleted)는 정상적으로 끝나야 합니다.
+         *
+         * CrawlResultListener.logAnalysisStats()는 내부 try-catch를 사용하므로
+         * 예외를 외부로 전파하지 않고 무시합니다.
+         */
+        @Test
+        @DisplayName("통계 조회 예외 - markCompleted()는 정상 처리")
+        void handleCompleted_StatsQueryThrows_StillCompletes() throws Exception {
+            // given
+            CrawlResultMessage message = new CrawlResultMessage(
+                    testJobIdStr,
+                    "COMPLETED",
+                    100,
+                    testMediaResults
+            );
+
+            String expectedJson = "{\"hankyung\":45,\"mk\":38,\"edaily\":42}";
+            given(objectMapper.writeValueAsString(testMediaResults))
+                    .willReturn(expectedJson);
+            given(crawlJobService.markCompleted(testJobId, 100, expectedJson))
+                    .willReturn(completedJob);
+
+            // 첫 번째 count()에서 예외 발생 → logAnalysisStats() 내부 catch로 처리됨
+            given(keywordRepository.count()).willThrow(new RuntimeException("통계 조회 실패"));
+
+            // when
+            crawlResultListener.handleCrawlResult(message);
+
+            // then: 핵심 완료 처리는 반드시 호출됨
+            then(crawlJobService).should(times(1))
+                    .markCompleted(testJobId, 100, expectedJson);
+
+            // 첫 count는 시도됨
+            then(keywordRepository).should(times(1)).count();
+
+            // 첫 count 예외로 try 블록이 중단되어 두 번째 count는 호출되지 않음
+            then(newsStockRepository).should(never()).count();
         }
     }
 
