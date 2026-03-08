@@ -1,6 +1,8 @@
 package com.lucr.messaging;
 
 import com.lucr.config.RabbitMQConfig;
+import com.lucr.repository.KeywordRepository;
+import com.lucr.repository.NewsStockRepository;
 import com.lucr.service.CrawlJobService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -46,6 +48,8 @@ import java.util.UUID;
 public class CrawlResultListener {
 
     private final CrawlJobService crawlJobService;
+    private final KeywordRepository keywordRepository;
+    private final NewsStockRepository newsStockRepository;
 
     /**
      * Jackson 3.x ObjectMapper - JSON 직렬화/역직렬화 도구
@@ -92,7 +96,7 @@ public class CrawlResultListener {
      */
     @RabbitListener(queues = RabbitMQConfig.CRAWL_RESULT_QUEUE)
     public void handleCrawlResult(CrawlResultMessage message) {
-        log.info("크롤링 결과 수신: jobId={}, status={}, totalArticles={}",
+        log.info("크롤링+분석 결과 수신: jobId={}, status={}, totalArticles={}",
                 message.jobId(), message.status(), message.totalArticles());
 
         try {
@@ -104,11 +108,17 @@ public class CrawlResultListener {
                     // 예: {"hankyung": 45, "mk": 38} → "{\"hankyung\":45,\"mk\":38}"
                     String mediaResultsJson = objectMapper.writeValueAsString(message.mediaResults());
                     crawlJobService.markCompleted(jobId, message.totalArticles(), mediaResultsJson);
-                    log.info("크롤링 작업 완료 처리: jobId={}, total={}건", jobId, message.totalArticles());
+                    log.info("크롤링+분석 완료 처리: jobId={}, total={}건", jobId, message.totalArticles());
+
+                    // 분석 결과 누적 통계를 운영 로그로 남깁니다.
+                    logAnalysisStats();
+
+                    // Phase 3 예정: 추천 알고리즘 자동 갱신
+                    // triggerRecommendationRefresh(jobId);
                 }
                 case "FAILED" -> {
                     crawlJobService.markFailed(jobId, "Python Worker에서 크롤링 실패");
-                    log.warn("크롤링 작업 실패 처리: jobId={}", jobId);
+                    log.warn("크롤링+분석 실패 처리: jobId={}", jobId);
                 }
                 default -> log.warn("알 수 없는 상태: jobId={}, status={}", jobId, message.status());
             }
@@ -117,6 +127,26 @@ public class CrawlResultListener {
             log.error("잘못된 jobId 형식: {}", message.jobId());
         } catch (Exception e) {
             log.error("크롤링 결과 처리 실패: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 분석 누적 통계를 로그로 출력합니다.
+     *
+     * 통계 로깅 실패는 메인 흐름(CrawlJob 상태 업데이트)에 영향을 주지 않도록
+     * 예외를 내부에서 처리합니다.
+     */
+    private void logAnalysisStats() {
+        try {
+            long totalKeywords = keywordRepository.count();
+            long totalNewsStocks = newsStockRepository.count();
+
+            log.info(
+                    "분석 통계 — 누적 키워드: {}개, 누적 뉴스-종목 연결: {}개",
+                    totalKeywords, totalNewsStocks
+            );
+        } catch (Exception e) {
+            log.warn("분석 통계 조회 실패 (무시됨): {}", e.getMessage());
         }
     }
 }
