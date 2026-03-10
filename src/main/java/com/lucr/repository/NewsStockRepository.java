@@ -9,6 +9,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -33,6 +35,31 @@ public interface NewsStockRepository extends JpaRepository<NewsStock, NewsStockI
      * SELECT * FROM news_stocks WHERE stock_code = ?
      */
     List<NewsStock> findByStock_Code(String stockCode);
+
+    /**
+     * 특정 종목의 관련 뉴스 수.
+     */
+    int countByStock_Code(String stockCode);
+
+    /**
+     * 종목의 총 언급 수 합계.
+     */
+    @Query("SELECT COALESCE(SUM(ns.mentionCount), 0) FROM NewsStock ns WHERE ns.stock.code = :stockCode")
+    int sumMentionCountByStockCode(@Param("stockCode") String stockCode);
+
+    /**
+     * 종목 관련 뉴스의 평균 감정 점수.
+     */
+    @Query("SELECT AVG(n.sentimentScore) FROM NewsStock ns JOIN ns.news n WHERE ns.stock.code = :stockCode")
+    BigDecimal avgSentimentByStockCode(@Param("stockCode") String stockCode);
+
+    /**
+     * 특정 시각 이후 발행된 종목 관련 뉴스 수.
+     */
+    @Query("SELECT COUNT(ns) FROM NewsStock ns JOIN ns.news n " +
+           "WHERE ns.stock.code = :stockCode AND n.publishedAt >= :since")
+    int countRecentNewsByStockCode(@Param("stockCode") String stockCode,
+                                   @Param("since") LocalDateTime since);
 
     /**
      * 특정 종목의 관련 뉴스 조회 (페이징, 최신순)
