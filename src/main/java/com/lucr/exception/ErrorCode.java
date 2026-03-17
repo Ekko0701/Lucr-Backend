@@ -42,6 +42,8 @@ public enum ErrorCode {
     REFRESH_TOKEN_NOT_FOUND(HttpStatus.NOT_FOUND, "E404005", "리프레시 토큰을 찾을 수 없습니다."),
     /** 종목코드로 조회했으나 해당 종목이 존재하지 않을 때 */
     STOCK_NOT_FOUND(HttpStatus.NOT_FOUND, "E404006", "종목을 찾을 수 없습니다."),
+    /** 종목코드로 추천 조회했으나 해당 추천 정보가 존재하지 않을 때 */
+    RECOMMENDATION_NOT_FOUND(HttpStatus.NOT_FOUND, "E404007", "해당 종목의 추천 정보를 찾을 수 없습니다."),
     
     // 409 Conflict
     DUPLICATE_RESOURCE(HttpStatus.CONFLICT, "E409001", "이미 존재하는 리소스입니다."),

@@ -4,6 +4,7 @@ import com.lucr.config.RabbitMQConfig;
 import com.lucr.repository.KeywordRepository;
 import com.lucr.repository.NewsStockRepository;
 import com.lucr.service.CrawlJobService;
+import com.lucr.service.RecommendationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -18,7 +19,8 @@ import java.util.UUID;
  *
  * 역할:
  *   Python Worker가 크롤링을 완료(또는 실패)하면 RabbitMQ에 결과 이벤트를 발행합니다.
- *   이 Listener가 해당 이벤트를 수신하여 CrawlJob의 상태를 DB에 반영합니다.
+ *   이 Listener가 해당 이벤트를 수신하여 CrawlJob의 상태를 DB에 반영하고,
+ *   크롤링 완료 시 추천 점수를 자동 갱신합니다.
  *
  * 메시지 흐름:
  *   Python CrawlResultPublisher
@@ -48,6 +50,7 @@ import java.util.UUID;
 public class CrawlResultListener {
 
     private final CrawlJobService crawlJobService;
+    private final RecommendationService recommendationService;
     private final KeywordRepository keywordRepository;
     private final NewsStockRepository newsStockRepository;
 
@@ -113,8 +116,13 @@ public class CrawlResultListener {
                     // 분석 결과 누적 통계를 운영 로그로 남깁니다.
                     logAnalysisStats();
 
-                    // Phase 3 예정: 추천 알고리즘 자동 갱신
-                    // triggerRecommendationRefresh(jobId);
+                    // 추천 점수 자동 갱신 (실패해도 크롤링 결과 저장에 영향 없음)
+                    try {
+                        int updated = recommendationService.refreshAllRecommendations();
+                        log.info("크롤링 완료 후 추천 갱신: {}개 종목", updated);
+                    } catch (Exception e) {
+                        log.warn("추천 갱신 실패 (크롤링 결과는 정상 저장됨): {}", e.getMessage());
+                    }
                 }
                 case "FAILED" -> {
                     crawlJobService.markFailed(jobId, "Python Worker에서 크롤링 실패");

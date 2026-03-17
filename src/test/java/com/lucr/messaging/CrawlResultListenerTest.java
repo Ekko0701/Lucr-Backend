@@ -6,6 +6,7 @@ import com.lucr.messaging.CrawlResultListener.CrawlResultMessage;
 import com.lucr.repository.KeywordRepository;
 import com.lucr.repository.NewsStockRepository;
 import com.lucr.service.CrawlJobService;
+import com.lucr.service.RecommendationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -67,6 +68,13 @@ class CrawlResultListenerTest {
      */
     @Mock
     private CrawlJobService crawlJobService;
+
+    /**
+     * RecommendationService Mock
+     * COMPLETED 처리 후 추천 점수 자동 갱신(refreshAllRecommendations) 호출 검증
+     */
+    @Mock
+    private RecommendationService recommendationService;
 
     /**
      * ObjectMapper Mock
@@ -168,9 +176,12 @@ class CrawlResultListenerTest {
             then(crawlJobService).should(times(1))
                     .markCompleted(testJobId, 125, expectedJson);
 
-            // STEP9: 분석 통계 조회가 함께 실행되어야 함
+            // 분석 통계 조회가 함께 실행되어야 함
             then(keywordRepository).should(times(1)).count();
             then(newsStockRepository).should(times(1)).count();
+
+            // 추천 점수 자동 갱신이 호출되어야 함
+            then(recommendationService).should(times(1)).refreshAllRecommendations();
 
             // markFailed()는 호출되지 않아야 함
             then(crawlJobService).should(never())

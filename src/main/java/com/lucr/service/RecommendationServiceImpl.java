@@ -5,7 +5,6 @@ import com.lucr.dto.response.PageResponse;
 import com.lucr.dto.response.RecommendationResponse;
 import com.lucr.entity.Recommendation;
 import com.lucr.entity.Stock;
-import com.lucr.exception.ErrorCode;
 import com.lucr.exception.ResourceNotFoundException;
 import com.lucr.mapper.RecommendationMapper;
 import com.lucr.repository.NewsStockRepository;
@@ -137,10 +136,7 @@ public class RecommendationServiceImpl implements RecommendationService {
         // stock_code UNIQUE 제약이 있으므로 최대 1건만 조회된다.
         Recommendation recommendation = recommendationRepository
                 .findByStock_Code(stockCode)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        ErrorCode.RESOURCE_NOT_FOUND,
-                        "해당 종목의 추천 정보를 찾을 수 없습니다: " + stockCode
-                ));
+                .orElseThrow(() -> ResourceNotFoundException.recommendationNotFound(stockCode));
         return recommendationMapper.toResponse(recommendation);
     }
 

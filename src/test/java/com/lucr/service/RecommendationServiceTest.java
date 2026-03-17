@@ -191,7 +191,7 @@ class RecommendationServiceTest {
             assertThatThrownBy(() -> recommendationService.getRecommendationByStockCode("NOPE"))
                     .isInstanceOf(ResourceNotFoundException.class)
                     .hasMessageContaining("NOPE")
-                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.RESOURCE_NOT_FOUND);
+                    .hasFieldOrPropertyWithValue("errorCode", ErrorCode.RECOMMENDATION_NOT_FOUND);
         }
     }
 

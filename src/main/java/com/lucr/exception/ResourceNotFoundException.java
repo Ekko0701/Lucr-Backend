@@ -45,4 +45,14 @@ public class ResourceNotFoundException extends BusinessException {
                 "사용자를 찾을 수 없습니다: " + identifier
         );
     }
+
+    /**
+     * 종목 추천 정보를 찾을 수 없는 경우
+     */
+    public static ResourceNotFoundException recommendationNotFound(String stockCode) {
+        return new ResourceNotFoundException(
+                ErrorCode.RECOMMENDATION_NOT_FOUND,
+                "해당 종목의 추천 정보를 찾을 수 없습니다: " + stockCode
+        );
+    }
 }
