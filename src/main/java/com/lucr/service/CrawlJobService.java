@@ -1,7 +1,10 @@
 package com.lucr.service;
 
+import com.lucr.dto.response.CrawlJobResponse;
+import com.lucr.dto.response.PageResponse;
 import com.lucr.entity.CrawlJob;
 import com.lucr.entity.CrawlJob.CrawlJobStatus;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.UUID;
@@ -71,4 +74,35 @@ public interface CrawlJobService {
      * @return 업데이트된 CrawlJob
      */
     CrawlJob markFailed(UUID jobId, String errorMessage);
+
+    /**
+     * 실행 중인(PENDING 또는 RUNNING) Job이 있는지 확인
+     *
+     * 용도: CrawlScheduler에서 동시 실행 방지
+     * 기존 existsByStatus(RUNNING)과의 차이:
+     *   - PENDING 상태도 포함 (아직 Worker가 가져가지 않은 작업)
+     *   - RUNNING만 체크하면 PENDING → RUNNING 사이에 중복 발생 가능
+     */
+    boolean hasRunningJob();
+
+    /**
+     * 전체 Job 목록 조회 (페이징, 최신순)
+     *
+     * @param pageable 페이징 정보
+     * @return 페이징된 CrawlJob 응답 목록
+     */
+    PageResponse<CrawlJobResponse> getAllJobs(Pageable pageable);
+
+    /**
+     * 상태별 Job 목록 조회 (페이징, 최신순)
+     *
+     * 기존 getJobsByStatus(CrawlJobStatus)과의 차이:
+     *   - 기존: List<CrawlJob> 반환 (페이징 없음, 내부 엔티티 노출)
+     *   - 신규: PageResponse<CrawlJobResponse> 반환 (페이징 + DTO 변환)
+     *
+     * @param status   상태 문자열 ("PENDING", "RUNNING", "COMPLETED", "FAILED")
+     * @param pageable 페이징 정보
+     * @return 페이징된 CrawlJob 응답 목록
+     */
+    PageResponse<CrawlJobResponse> getJobsByStatus(String status, Pageable pageable);
 }

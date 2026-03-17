@@ -1,5 +1,7 @@
 package com.lucr.service;
 
+import com.lucr.dto.response.CrawlJobResponse;
+import com.lucr.dto.response.PageResponse;
 import com.lucr.entity.CrawlJob;
 import com.lucr.entity.CrawlJob.CrawlJobStatus;
 import com.lucr.exception.BusinessException;
@@ -8,6 +10,8 @@ import com.lucr.exception.ResourceNotFoundException;
 import com.lucr.repository.CrawlJobRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -97,5 +101,36 @@ public class CrawlJobServiceImpl implements CrawlJobService {
 
         log.error("크롤링 작업 실패: jobId={}, error={}", jobId, errorMessage);
         return job;
+    }
+
+    @Override
+    public boolean hasRunningJob() {
+        return crawlJobRepository.existsByStatusIn(
+                List.of(CrawlJobStatus.PENDING, CrawlJobStatus.RUNNING));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<CrawlJobResponse> getAllJobs(Pageable pageable) {
+        Page<CrawlJob> page = crawlJobRepository.findAllByOrderByCreatedAtDesc(pageable);
+        return toPageResponse(page);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<CrawlJobResponse> getJobsByStatus(String status, Pageable pageable) {
+        CrawlJobStatus crawlJobStatus = CrawlJobStatus.valueOf(status);
+        Page<CrawlJob> page = crawlJobRepository
+                .findByStatusOrderByCreatedAtDesc(crawlJobStatus, pageable);
+        return toPageResponse(page);
+    }
+
+    // ========== 내부 헬퍼 ==========
+
+    private PageResponse<CrawlJobResponse> toPageResponse(Page<CrawlJob> page) {
+        List<CrawlJobResponse> content = page.getContent().stream()
+                .map(CrawlJobResponse::from)
+                .toList();
+        return PageResponse.of(page, content);
     }
 }

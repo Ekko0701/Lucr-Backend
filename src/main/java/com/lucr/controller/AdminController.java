@@ -2,11 +2,15 @@ package com.lucr.controller;
 
 import com.lucr.common.ApiResponse;
 import com.lucr.dto.response.CrawlJobResponse;
+import com.lucr.dto.response.PageResponse;
 import com.lucr.entity.CrawlJob;
 import com.lucr.messaging.CrawlJobPublisher;
 import com.lucr.service.CrawlJobService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -88,6 +92,40 @@ public class AdminController {
         CrawlJobResponse response = CrawlJobResponse.from(job);
 
         log.info("크롤링 작업 상태 조회 완료: jobId={}, status={}", jobId, job.getStatus());
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    // ========== 작업 이력 조회 ==========
+
+    /**
+     * 크롤링 작업 이력 조회 (전체 또는 상태별 필터, 페이징)
+     *
+     * 사용 예시:
+     *   GET /api/v1/admin/crawl/jobs                    → 전체 이력 (최신순)
+     *   GET /api/v1/admin/crawl/jobs?status=COMPLETED   → 완료된 작업만
+     *   GET /api/v1/admin/crawl/jobs?status=FAILED      → 실패한 작업만
+     *   GET /api/v1/admin/crawl/jobs?page=1&size=10     → 2페이지, 10개씩
+     *
+     * @param status   상태 필터 (선택, "PENDING"/"RUNNING"/"COMPLETED"/"FAILED")
+     * @param pageable 페이징 정보 (기본 size=20, 최신순)
+     * @return 200 OK + 페이징된 작업 이력
+     */
+    @GetMapping("/crawl/jobs")
+    public ResponseEntity<ApiResponse<PageResponse<CrawlJobResponse>>> getCrawlJobs(
+            @RequestParam(required = false) String status,
+            @ParameterObject
+            @PageableDefault(size = 20) Pageable pageable) {
+        log.info("크롤링 작업 이력 조회: status={}, page={}, size={}",
+                status, pageable.getPageNumber(), pageable.getPageSize());
+
+        PageResponse<CrawlJobResponse> response;
+        if (status != null && !status.isBlank()) {
+            response = crawlJobService.getJobsByStatus(status.toUpperCase(), pageable);
+        } else {
+            response = crawlJobService.getAllJobs(pageable);
+        }
+
+        log.info("크롤링 작업 이력 조회 완료: totalElements={}", response.getTotalElements());
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 }
