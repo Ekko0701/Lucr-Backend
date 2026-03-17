@@ -61,6 +61,8 @@ import java.util.List;
  * /api/v1/admin/**            │ ADMIN 역할만
  * GET /api/v1/news/**         │ 인증된 사용자 (USER + ADMIN)
  * POST/PUT/DELETE /api/v1/news│ ADMIN 역할만
+ * GET /api/v1/recommendations/**          │ 인증된 사용자 (USER + ADMIN)
+ * POST /api/v1/recommendations/refresh   │ ADMIN 역할만
  * GET /api/v1/stocks/**       │ 인증된 사용자 (USER + ADMIN)
  * POST/DELETE /api/v1/stocks  │ ADMIN 역할만
  * 나머지 모든 경로              │ 인증 필요 (authenticated)
@@ -271,6 +273,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/news/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/v1/news/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/news/**").hasRole("ADMIN")
+
+                        // === 추천: 조회는 인증된 사용자 모두, 갱신은 ADMIN만 ===
+                        .requestMatchers(HttpMethod.GET, "/api/v1/recommendations/**").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/recommendations/refresh").hasRole("ADMIN")
 
                         // === 종목: 조회는 인증된 사용자 모두, 등록/삭제는 ADMIN만 ===
                         .requestMatchers(HttpMethod.GET, "/api/v1/stocks/**").authenticated()
