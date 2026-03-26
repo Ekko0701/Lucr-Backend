@@ -89,7 +89,16 @@ public class NewsSearchRequest {
      * null: 모든 뉴스
      */
     private Boolean isHighView;
-    
+
+    /**
+     * 종목 코드 (선택)
+     *
+     * 특정 종목이 언급된 뉴스만 검색
+     * news_stocks 테이블을 JOIN하여 필터링
+     * 예시: "005930" (삼성전자)
+     */
+    private String stockCode;
+
     // ========== 페이징 파라미터 ==========
     
     /**

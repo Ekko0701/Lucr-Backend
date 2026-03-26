@@ -4,6 +4,7 @@ import com.lucr.entity.News;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -27,7 +28,8 @@ import java.util.UUID;
  * @since 2026-01-28
  */
 @Repository
-public interface NewsRepository extends JpaRepository<News, UUID> {
+public interface NewsRepository extends JpaRepository<News, UUID>,
+                                        JpaSpecificationExecutor<News> {
     
     // ========== 1. 기본 CRUD (JpaRepository가 자동 제공) ==========
     // save(news)           - INSERT/UPDATE
