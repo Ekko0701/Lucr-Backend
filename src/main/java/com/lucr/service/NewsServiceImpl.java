@@ -11,6 +11,8 @@ import com.lucr.exception.DuplicateResourceException;
 import com.lucr.exception.ResourceNotFoundException;
 import com.lucr.mapper.NewsMapper;
 import com.lucr.repository.NewsRepository;
+import com.lucr.specification.NewsSpecification;
+import org.springframework.data.jpa.domain.Specification;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -233,32 +235,63 @@ public class NewsServiceImpl implements NewsService {
 
     /**
      * 뉴스 검색 (복합 조건, 페이징)
+     *
+     * NewsSearchRequest의 null이 아닌 필터를 동적으로 AND 결합하여 검색합니다.
+     * JPA Specification 패턴을 사용하여 모든 필터 조합을 하나의 메서드로 처리합니다.
+     *
+     * 지원 필터:
+     *   - keyword: 제목/본문 LIKE 검색
+     *   - source: 출처 일치
+     *   - minViewCount: 최소 조회수
+     *   - minSentimentScore / maxSentimentScore: 감정 점수 범위
+     *   - startDate / endDate: 발행일 범위
+     *   - isHighView: 인기 뉴스 여부
+     *   - stockCode: 종목 언급 필터 (news_stocks JOIN)
      */
     @Override
     public PageResponse<NewsResponse> searchNews(NewsSearchRequest searchRequest) {
-        log.debug("뉴스 검색 요청: keyword={}, source={}", 
-                searchRequest.getKeyword(), searchRequest.getSource());
+        log.debug("뉴스 검색 요청: keyword={}, source={}, stockCode={}",
+                searchRequest.getKeyword(), searchRequest.getSource(),
+                searchRequest.getStockCode());
 
-        // Pageable 생성
+        // 정렬 파라미터 파싱
+        Sort sort = parseSort(searchRequest.getSort());
+
         Pageable pageable = PageRequest.of(
                 searchRequest.getPage(),
                 searchRequest.getSize(),
-                Sort.by(Sort.Direction.DESC, "createdAt")
+                sort
         );
 
-        // 기본 검색 (키워드가 있는 경우)
-        Page<News> newsPage;
-        if (searchRequest.getKeyword() != null && !searchRequest.getKeyword().trim().isEmpty()) {
-            newsPage = newsRepository.findAll(pageable); // TODO: 실제 검색 쿼리 구현 필요
-        } else {
-            newsPage = newsRepository.findAll(pageable);
-        }
+        // Specification 생성 + 검색 실행
+        Specification<News> spec = NewsSpecification.fromSearchRequest(searchRequest);
+        Page<News> newsPage = newsRepository.findAll(spec, pageable);
 
         List<NewsResponse> responses = newsPage.getContent().stream()
                 .map(newsMapper::toResponse)
-                .collect(Collectors.toList());
+                .toList();
 
         return PageResponse.of(newsPage, responses);
+    }
+
+    /**
+     * 정렬 파라미터 파싱
+     *
+     * "viewCount,desc" → Sort.by(DESC, "viewCount")
+     * "publishedAt,asc" → Sort.by(ASC, "publishedAt")
+     * null 또는 빈 문자열 → Sort.by(DESC, "createdAt") (기본값)
+     */
+    private Sort parseSort(String sortParam) {
+        if (sortParam == null || sortParam.isBlank()) {
+            return Sort.by(Sort.Direction.DESC, "createdAt");
+        }
+        String[] parts = sortParam.split(",");
+        String property = parts[0].trim();
+        Sort.Direction direction = parts.length > 1
+                && "asc".equalsIgnoreCase(parts[1].trim())
+                ? Sort.Direction.ASC
+                : Sort.Direction.DESC;
+        return Sort.by(direction, property);
     }
 
     /**
