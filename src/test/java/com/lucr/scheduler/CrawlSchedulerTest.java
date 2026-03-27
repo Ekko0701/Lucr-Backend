@@ -90,6 +90,25 @@ class CrawlSchedulerTest {
 
             then(crawlJobPublisher).should(never()).publish(any(), anyInt());
         }
+
+        @Test
+        @DisplayName("publish 예외 - 로그만 남기고 정상 종료")
+        void scheduledCrawl_PublishThrows_CaughtGracefully() {
+            ReflectionTestUtils.setField(crawlScheduler, "schedulerEnabled", true);
+            ReflectionTestUtils.setField(crawlScheduler, "maxArticles", 30);
+
+            UUID jobId = UUID.randomUUID();
+            CrawlJob job = CrawlJob.builder().id(jobId).build();
+            given(crawlJobService.hasRunningJob()).willReturn(false);
+            given(crawlJobService.createJob()).willReturn(job);
+            willThrow(new RuntimeException("RabbitMQ 오류"))
+                    .given(crawlJobPublisher).publish(jobId, 30);
+
+            crawlScheduler.scheduledCrawl();
+
+            then(crawlJobService).should(times(1)).createJob();
+            then(crawlJobPublisher).should(times(1)).publish(jobId, 30);
+        }
     }
 
     @Nested

@@ -1,8 +1,12 @@
 package com.lucr.specification;
 
 import com.lucr.dto.request.NewsSearchRequest;
+import com.lucr.entity.Market;
 import com.lucr.entity.News;
+import com.lucr.entity.NewsStock;
+import com.lucr.entity.Stock;
 import com.lucr.repository.NewsRepository;
+import com.lucr.repository.StockRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -24,6 +28,9 @@ class NewsSpecificationTest {
     @Autowired
     private NewsRepository newsRepository;
 
+    @Autowired
+    private StockRepository stockRepository;
+
     private News createAndSaveNews(String title, String source,
                                     BigDecimal sentiment, int viewCount) {
         News news = News.builder()
@@ -36,6 +43,20 @@ class NewsSpecificationTest {
                 .publishedAt(LocalDateTime.now())
                 .build();
         return newsRepository.save(news);
+    }
+
+    private Stock createAndSaveStock(String code, String name) {
+        Stock stock = Stock.builder()
+                .code(code)
+                .name(name)
+                .market(Market.KOSPI)
+                .build();
+        return stockRepository.save(stock);
+    }
+
+    private void linkNewsToStock(News news, Stock stock, int mentionCount) {
+        NewsStock newsStock = NewsStock.create(news, stock, mentionCount);
+        news.getNewsStocks().add(newsStock);
     }
 
     @Nested
@@ -164,6 +185,32 @@ class NewsSpecificationTest {
 
             assertThat(result.getContent()).hasSize(1);
             assertThat(result.getContent().get(0).getTitle()).isEqualTo("최신 뉴스");
+        }
+
+        @Test
+        @DisplayName("종목 코드 필터 - JOIN으로 연결된 뉴스만 반환")
+        void stockCode_FiltersByJoin() {
+            Stock samsung = createAndSaveStock("005930", "삼성전자");
+            Stock skHynix = createAndSaveStock("000660", "SK하이닉스");
+
+            News samsungNews = createAndSaveNews("삼성전자 관련 뉴스", "NAVER", BigDecimal.ZERO, 100);
+            linkNewsToStock(samsungNews, samsung, 3);
+            linkNewsToStock(samsungNews, skHynix, 1);
+            newsRepository.saveAndFlush(samsungNews);
+
+            News hynixNews = createAndSaveNews("하이닉스 관련 뉴스", "NAVER", BigDecimal.ZERO, 100);
+            linkNewsToStock(hynixNews, skHynix, 2);
+            newsRepository.saveAndFlush(hynixNews);
+
+            NewsSearchRequest request = NewsSearchRequest.builder()
+                    .stockCode("005930")
+                    .build();
+            Specification<News> spec = NewsSpecification.fromSearchRequest(request);
+
+            Page<News> result = newsRepository.findAll(spec, PageRequest.of(0, 20));
+
+            assertThat(result.getContent()).hasSize(1);
+            assertThat(result.getContent().get(0).getTitle()).isEqualTo("삼성전자 관련 뉴스");
         }
     }
 }

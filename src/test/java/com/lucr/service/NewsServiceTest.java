@@ -874,7 +874,7 @@ class NewsServiceTest {
     class SearchNewsTests {
 
         @Test
-        @DisplayName("필터 없이 호출 - Specification으로 전체 뉴스 반환")
+        @DisplayName("필터 없이 호출 - 기본 페이징/정렬로 전체 뉴스 반환")
         void searchNews_NoFilters_ReturnsAll() {
             // given
             News news = News.builder()
@@ -897,11 +897,19 @@ class NewsServiceTest {
             // then
             assertThat(result.getContent()).hasSize(1);
             then(newsRepository).should(times(1))
-                    .findAll(any(Specification.class), any(Pageable.class));
+                    .findAll(
+                            any(Specification.class),
+                            argThat((Pageable pageable) ->
+                                    pageable.getPageNumber() == 0
+                                            && pageable.getPageSize() == 20
+                                            && pageable.getSort().getOrderFor("createdAt") != null
+                                            && pageable.getSort().getOrderFor("createdAt").isDescending())
+                    );
+            then(newsMapper).should(times(1)).toResponse(any(News.class));
         }
 
         @Test
-        @DisplayName("키워드 + 감정 점수 필터 - Specification으로 검색")
+        @DisplayName("키워드 + 감정 점수 필터 - 커스텀 페이지/정렬로 검색")
         void searchNews_WithFilters_UsesSpecification() {
             // given
             Page<News> emptyPage = Page.empty();
@@ -912,20 +920,29 @@ class NewsServiceTest {
             NewsSearchRequest request = NewsSearchRequest.builder()
                     .keyword("삼성전자")
                     .minSentimentScore(new BigDecimal("0.5"))
+                    .page(1)
+                    .size(5)
+                    .sort("publishedAt,asc")
                     .build();
             PageResponse<NewsResponse> result = newsService.searchNews(request);
 
             // then
             assertThat(result.getContent()).isEmpty();
-            // findAll(Specification, Pageable)이 호출됨을 검증
             then(newsRepository).should(times(1))
-                    .findAll(any(Specification.class), any(Pageable.class));
+                    .findAll(
+                            any(Specification.class),
+                            argThat((Pageable pageable) ->
+                                    pageable.getPageNumber() == 1
+                                            && pageable.getPageSize() == 5
+                                            && pageable.getSort().getOrderFor("publishedAt") != null
+                                            && pageable.getSort().getOrderFor("publishedAt").isAscending())
+                    );
             then(newsRepository).should(never()).findAll(any(Pageable.class));
         }
 
         @Test
-        @DisplayName("정렬 파라미터 - viewCount,desc 적용")
-        void searchNews_CustomSort() {
+        @DisplayName("빈 정렬 파라미터 - createdAt,desc 기본값 적용")
+        void searchNews_BlankSort_FallsBackToDefaultSort() {
             // given
             Page<News> emptyPage = Page.empty();
             given(newsRepository.findAll(any(Specification.class), any(Pageable.class)))
@@ -933,13 +950,22 @@ class NewsServiceTest {
 
             // when
             NewsSearchRequest request = NewsSearchRequest.builder()
-                    .sort("viewCount,desc")
+                    .sort(" ")
+                    .page(2)
+                    .size(3)
                     .build();
             newsService.searchNews(request);
 
             // then
             then(newsRepository).should(times(1))
-                    .findAll(any(Specification.class), any(Pageable.class));
+                    .findAll(
+                            any(Specification.class),
+                            argThat((Pageable pageable) ->
+                                    pageable.getPageNumber() == 2
+                                            && pageable.getPageSize() == 3
+                                            && pageable.getSort().getOrderFor("createdAt") != null
+                                            && pageable.getSort().getOrderFor("createdAt").isDescending())
+                    );
         }
     }
 }

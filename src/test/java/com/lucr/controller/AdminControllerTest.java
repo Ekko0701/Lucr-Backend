@@ -27,6 +27,7 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
@@ -381,6 +382,61 @@ class AdminControllerTest {
 
             then(crawlJobService).should(times(1))
                     .getJobsByStatus(eq("COMPLETED"), any(Pageable.class));
+        }
+
+        @Test
+        @DisplayName("소문자 상태 필터 - 대문자로 정규화 후 서비스 호출")
+        void getCrawlJobs_LowercaseStatus_NormalizedToUpperCase() throws Exception {
+            PageResponse<CrawlJobResponse> pageResponse = PageResponse.<CrawlJobResponse>builder()
+                    .content(List.of())
+                    .currentPage(0)
+                    .pageSize(20)
+                    .totalElements(0L)
+                    .totalPages(0)
+                    .isFirst(true)
+                    .isLast(true)
+                    .hasNext(false)
+                    .hasPrevious(false)
+                    .build();
+            given(crawlJobService.getJobsByStatus(eq("COMPLETED"), any(Pageable.class)))
+                    .willReturn(pageResponse);
+
+            mockMvc.perform(get("/api/v1/admin/crawl/jobs")
+                            .param("status", "completed"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.success").value(true));
+
+            then(crawlJobService).should(times(1))
+                    .getJobsByStatus(eq("COMPLETED"), any(Pageable.class));
+        }
+
+        @Test
+        @DisplayName("페이지 파라미터 전달 - page, size가 서비스로 전달됨")
+        void getCrawlJobs_PageableForwarded() throws Exception {
+            PageResponse<CrawlJobResponse> pageResponse = PageResponse.<CrawlJobResponse>builder()
+                    .content(List.of())
+                    .currentPage(1)
+                    .pageSize(10)
+                    .totalElements(0L)
+                    .totalPages(0)
+                    .isFirst(false)
+                    .isLast(true)
+                    .hasNext(false)
+                    .hasPrevious(true)
+                    .build();
+            given(crawlJobService.getAllJobs(any(Pageable.class))).willReturn(pageResponse);
+
+            mockMvc.perform(get("/api/v1/admin/crawl/jobs")
+                            .param("page", "1")
+                            .param("size", "10"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.currentPage").value(1))
+                    .andExpect(jsonPath("$.data.pageSize").value(10));
+
+            then(crawlJobService).should(times(1)).getAllJobs(
+                    argThat(pageable ->
+                            pageable.getPageNumber() == 1
+                                    && pageable.getPageSize() == 10));
         }
     }
 }
