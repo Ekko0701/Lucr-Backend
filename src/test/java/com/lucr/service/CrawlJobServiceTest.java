@@ -1,5 +1,7 @@
 package com.lucr.service;
 
+import com.lucr.dto.response.CrawlJobResponse;
+import com.lucr.dto.response.PageResponse;
 import com.lucr.entity.CrawlJob;
 import com.lucr.entity.CrawlJob.CrawlJobStatus;
 import com.lucr.exception.BusinessException;
@@ -13,6 +15,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.Optional;
@@ -20,6 +26,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.*;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -342,6 +349,108 @@ class CrawlJobServiceTest {
             assertThatThrownBy(() ->
                     crawlJobService.markFailed(nonExistentId, "에러"))
                     .isInstanceOf(ResourceNotFoundException.class);
+        }
+    }
+
+    // ========== 7. hasRunningJob() 테스트 ==========
+
+    @Nested
+    @DisplayName("hasRunningJob() - 실행 중인 Job 존재 여부")
+    class HasRunningJobTests {
+
+        @Test
+        @DisplayName("PENDING 또는 RUNNING Job 존재 - true")
+        void hasRunningJob_Exists_ReturnsTrue() {
+            given(crawlJobRepository.existsByStatusIn(
+                    List.of(CrawlJobStatus.PENDING, CrawlJobStatus.RUNNING)))
+                    .willReturn(true);
+
+            assertThat(crawlJobService.hasRunningJob()).isTrue();
+        }
+
+        @Test
+        @DisplayName("실행 중인 Job 없음 - false")
+        void hasRunningJob_NotExists_ReturnsFalse() {
+            given(crawlJobRepository.existsByStatusIn(
+                    List.of(CrawlJobStatus.PENDING, CrawlJobStatus.RUNNING)))
+                    .willReturn(false);
+
+            assertThat(crawlJobService.hasRunningJob()).isFalse();
+        }
+    }
+
+    // ========== 8. getAllJobs() 테스트 ==========
+
+    @Nested
+    @DisplayName("getAllJobs() - 전체 Job 목록 조회")
+    class GetAllJobsTests {
+
+        @Test
+        @DisplayName("페이징된 전체 Job 목록 반환")
+        void getAllJobs_ReturnsPagedResponse() {
+            CrawlJob job = CrawlJob.builder()
+                    .id(UUID.randomUUID())
+                    .status(CrawlJobStatus.COMPLETED)
+                    .totalArticles(100)
+                    .build();
+            Page<CrawlJob> page = new PageImpl<>(List.of(job));
+            given(crawlJobRepository.findAllByOrderByCreatedAtDesc(any(Pageable.class)))
+                    .willReturn(page);
+
+            PageResponse<CrawlJobResponse> result =
+                    crawlJobService.getAllJobs(PageRequest.of(0, 20));
+
+            assertThat(result.getContent()).hasSize(1);
+            assertThat(result.getTotalElements()).isEqualTo(1);
+        }
+
+        @Test
+        @DisplayName("빈 목록일 때 빈 페이지 반환")
+        void getAllJobs_Empty_ReturnsEmptyPage() {
+            Page<CrawlJob> emptyPage = Page.empty();
+            given(crawlJobRepository.findAllByOrderByCreatedAtDesc(any(Pageable.class)))
+                    .willReturn(emptyPage);
+
+            PageResponse<CrawlJobResponse> result =
+                    crawlJobService.getAllJobs(PageRequest.of(0, 20));
+
+            assertThat(result.getContent()).isEmpty();
+            assertThat(result.getTotalElements()).isZero();
+        }
+    }
+
+    // ========== 9. getJobsByStatus(String, Pageable) 테스트 ==========
+
+    @Nested
+    @DisplayName("getJobsByStatus(String, Pageable) - 상태별 페이징 조회")
+    class GetJobsByStatusPagedTests {
+
+        @Test
+        @DisplayName("상태별 필터링된 페이징 결과 반환")
+        void getJobsByStatus_ReturnsFilteredPage() {
+            CrawlJob job = CrawlJob.builder()
+                    .id(UUID.randomUUID())
+                    .status(CrawlJobStatus.COMPLETED)
+                    .totalArticles(50)
+                    .build();
+            Page<CrawlJob> page = new PageImpl<>(List.of(job));
+            given(crawlJobRepository.findByStatusOrderByCreatedAtDesc(
+                    eq(CrawlJobStatus.COMPLETED), any(Pageable.class)))
+                    .willReturn(page);
+
+            PageResponse<CrawlJobResponse> result =
+                    crawlJobService.getJobsByStatus("COMPLETED", PageRequest.of(0, 20));
+
+            assertThat(result.getContent()).hasSize(1);
+            assertThat(result.getContent().get(0).getStatus()).isEqualTo("COMPLETED");
+        }
+
+        @Test
+        @DisplayName("잘못된 상태 문자열 - IllegalArgumentException")
+        void getJobsByStatus_InvalidStatus_ThrowsException() {
+            assertThatThrownBy(() ->
+                    crawlJobService.getJobsByStatus("INVALID", PageRequest.of(0, 20)))
+                    .isInstanceOf(IllegalArgumentException.class);
         }
     }
 }

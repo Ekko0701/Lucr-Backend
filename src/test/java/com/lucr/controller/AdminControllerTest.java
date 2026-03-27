@@ -1,5 +1,7 @@
 package com.lucr.controller;
 
+import com.lucr.dto.response.CrawlJobResponse;
+import com.lucr.dto.response.PageResponse;
 import com.lucr.entity.CrawlJob;
 import com.lucr.entity.CrawlJob.CrawlJobStatus;
 import com.lucr.exception.BusinessException;
@@ -13,12 +15,14 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -322,6 +326,61 @@ class AdminControllerTest {
 
             // Service 호출되지 않음
             then(crawlJobService).should(times(0)).getJobById(any());
+        }
+    }
+
+    // ========== GET /api/v1/admin/crawl/jobs - 작업 이력 조회 ==========
+
+    @Nested
+    @DisplayName("GET /api/v1/admin/crawl/jobs - getCrawlJobs()")
+    class GetCrawlJobsTests {
+
+        @Test
+        @DisplayName("전체 이력 조회 - 성공")
+        void getCrawlJobs_AllJobs_Success() throws Exception {
+            PageResponse<CrawlJobResponse> pageResponse = PageResponse.<CrawlJobResponse>builder()
+                    .content(List.of())
+                    .currentPage(0)
+                    .pageSize(20)
+                    .totalElements(0L)
+                    .totalPages(0)
+                    .isFirst(true)
+                    .isLast(true)
+                    .hasNext(false)
+                    .hasPrevious(false)
+                    .build();
+            given(crawlJobService.getAllJobs(any(Pageable.class))).willReturn(pageResponse);
+
+            mockMvc.perform(get("/api/v1/admin/crawl/jobs"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.success").value(true))
+                    .andExpect(jsonPath("$.data.totalElements").value(0));
+        }
+
+        @Test
+        @DisplayName("상태별 필터 조회 - 성공")
+        void getCrawlJobs_WithStatusFilter_Success() throws Exception {
+            PageResponse<CrawlJobResponse> pageResponse = PageResponse.<CrawlJobResponse>builder()
+                    .content(List.of())
+                    .currentPage(0)
+                    .pageSize(20)
+                    .totalElements(0L)
+                    .totalPages(0)
+                    .isFirst(true)
+                    .isLast(true)
+                    .hasNext(false)
+                    .hasPrevious(false)
+                    .build();
+            given(crawlJobService.getJobsByStatus(eq("COMPLETED"), any(Pageable.class)))
+                    .willReturn(pageResponse);
+
+            mockMvc.perform(get("/api/v1/admin/crawl/jobs")
+                            .param("status", "COMPLETED"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.success").value(true));
+
+            then(crawlJobService).should(times(1))
+                    .getJobsByStatus(eq("COMPLETED"), any(Pageable.class));
         }
     }
 }

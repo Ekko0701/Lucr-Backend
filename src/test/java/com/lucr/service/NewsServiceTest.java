@@ -23,6 +23,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
@@ -869,60 +870,76 @@ class NewsServiceTest {
     // ========== 11. searchNews() 테스트 ==========
 
     @Nested
-    @DisplayName("searchNews() - 복합 조건 검색")
+    @DisplayName("searchNews() - Specification 기반 복합 조건 검색")
     class SearchNewsTests {
 
         @Test
-        @DisplayName("검색 조건 있음 - 정상 조회")
-        void searchNews_WithKeyword_Success() {
-            // given: 검색 조건과 결과가 있음
-            NewsSearchRequest searchRequest = NewsSearchRequest.builder()
-                    .keyword("주가")
-                    .source("NAVER_FINANCE")
-                    .page(0)
-                    .size(10)
+        @DisplayName("필터 없이 호출 - Specification으로 전체 뉴스 반환")
+        void searchNews_NoFilters_ReturnsAll() {
+            // given
+            News news = News.builder()
+                    .id(UUID.randomUUID())
+                    .title("테스트 뉴스")
+                    .content("본문")
+                    .source("NAVER")
+                    .url("https://test.com/1")
                     .build();
+            Page<News> page = new PageImpl<>(List.of(news));
 
-            List<News> newsList = List.of(testNews, testNews);
-            Page<News> newsPage = new PageImpl<>(newsList, PageRequest.of(0, 10), 2);
-
-            given(newsRepository.findAll(any(Pageable.class))).willReturn(newsPage);
+            given(newsRepository.findAll(any(Specification.class), any(Pageable.class)))
+                    .willReturn(page);
             given(newsMapper.toResponse(any(News.class))).willReturn(newsResponse);
 
-            // when: 검색
-            PageResponse<NewsResponse> result = newsService.searchNews(searchRequest);
+            // when
+            NewsSearchRequest request = NewsSearchRequest.builder().build();
+            PageResponse<NewsResponse> result = newsService.searchNews(request);
 
-            // then: PageResponse 반환
-            assertThat(result).isNotNull();
-            assertThat(result.getContent()).hasSize(2);
-
-            // Mock 호출 검증
-            then(newsRepository).should(times(1)).findAll(any(Pageable.class));
-            then(newsMapper).should(times(2)).toResponse(any(News.class));
+            // then
+            assertThat(result.getContent()).hasSize(1);
+            then(newsRepository).should(times(1))
+                    .findAll(any(Specification.class), any(Pageable.class));
         }
 
         @Test
-        @DisplayName("검색 조건 없음 - 전체 조회")
-        void searchNews_WithoutKeyword_ReturnsAll() {
-            // given: 검색 조건이 없음 (빈 키워드)
-            NewsSearchRequest searchRequest = NewsSearchRequest.builder()
-                    .keyword("")
-                    .page(0)
-                    .size(10)
+        @DisplayName("키워드 + 감정 점수 필터 - Specification으로 검색")
+        void searchNews_WithFilters_UsesSpecification() {
+            // given
+            Page<News> emptyPage = Page.empty();
+            given(newsRepository.findAll(any(Specification.class), any(Pageable.class)))
+                    .willReturn(emptyPage);
+
+            // when
+            NewsSearchRequest request = NewsSearchRequest.builder()
+                    .keyword("삼성전자")
+                    .minSentimentScore(new BigDecimal("0.5"))
                     .build();
+            PageResponse<NewsResponse> result = newsService.searchNews(request);
 
-            List<News> newsList = List.of(testNews, testNews, testNews);
-            Page<News> newsPage = new PageImpl<>(newsList, PageRequest.of(0, 10), 3);
+            // then
+            assertThat(result.getContent()).isEmpty();
+            // findAll(Specification, Pageable)이 호출됨을 검증
+            then(newsRepository).should(times(1))
+                    .findAll(any(Specification.class), any(Pageable.class));
+            then(newsRepository).should(never()).findAll(any(Pageable.class));
+        }
 
-            given(newsRepository.findAll(any(Pageable.class))).willReturn(newsPage);
-            given(newsMapper.toResponse(any(News.class))).willReturn(newsResponse);
+        @Test
+        @DisplayName("정렬 파라미터 - viewCount,desc 적용")
+        void searchNews_CustomSort() {
+            // given
+            Page<News> emptyPage = Page.empty();
+            given(newsRepository.findAll(any(Specification.class), any(Pageable.class)))
+                    .willReturn(emptyPage);
 
-            // when: 검색
-            PageResponse<NewsResponse> result = newsService.searchNews(searchRequest);
+            // when
+            NewsSearchRequest request = NewsSearchRequest.builder()
+                    .sort("viewCount,desc")
+                    .build();
+            newsService.searchNews(request);
 
-            // then: 전체 목록 반환
-            assertThat(result).isNotNull();
-            assertThat(result.getContent()).hasSize(3);
+            // then
+            then(newsRepository).should(times(1))
+                    .findAll(any(Specification.class), any(Pageable.class));
         }
     }
 }
