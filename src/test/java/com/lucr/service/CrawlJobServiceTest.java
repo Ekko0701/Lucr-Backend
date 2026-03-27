@@ -419,10 +419,10 @@ class CrawlJobServiceTest {
         }
     }
 
-    // ========== 9. getJobsByStatus(String, Pageable) 테스트 ==========
+    // ========== 9. getJobsByStatus(CrawlJobStatus, Pageable) 테스트 ==========
 
     @Nested
-    @DisplayName("getJobsByStatus(String, Pageable) - 상태별 페이징 조회")
+    @DisplayName("getJobsByStatus(CrawlJobStatus, Pageable) - 상태별 페이징 조회")
     class GetJobsByStatusPagedTests {
 
         @Test
@@ -439,18 +439,10 @@ class CrawlJobServiceTest {
                     .willReturn(page);
 
             PageResponse<CrawlJobResponse> result =
-                    crawlJobService.getJobsByStatus("COMPLETED", PageRequest.of(0, 20));
+                    crawlJobService.getJobsByStatus(CrawlJobStatus.COMPLETED, PageRequest.of(0, 20));
 
             assertThat(result.getContent()).hasSize(1);
             assertThat(result.getContent().get(0).getStatus()).isEqualTo("COMPLETED");
-        }
-
-        @Test
-        @DisplayName("잘못된 상태 문자열 - IllegalArgumentException")
-        void getJobsByStatus_InvalidStatus_ThrowsException() {
-            assertThatThrownBy(() ->
-                    crawlJobService.getJobsByStatus("INVALID", PageRequest.of(0, 20)))
-                    .isInstanceOf(IllegalArgumentException.class);
         }
     }
 }

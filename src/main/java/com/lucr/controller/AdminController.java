@@ -4,6 +4,7 @@ import com.lucr.common.ApiResponse;
 import com.lucr.dto.response.CrawlJobResponse;
 import com.lucr.dto.response.PageResponse;
 import com.lucr.entity.CrawlJob;
+import com.lucr.entity.CrawlJob.CrawlJobStatus;
 import com.lucr.messaging.CrawlJobPublisher;
 import com.lucr.service.CrawlJobService;
 import lombok.RequiredArgsConstructor;
@@ -103,24 +104,25 @@ public class AdminController {
      * 사용 예시:
      *   GET /api/v1/admin/crawl/jobs                    → 전체 이력 (최신순)
      *   GET /api/v1/admin/crawl/jobs?status=COMPLETED   → 완료된 작업만
+     *   GET /api/v1/admin/crawl/jobs?status=completed   → 대소문자 무관
      *   GET /api/v1/admin/crawl/jobs?status=FAILED      → 실패한 작업만
      *   GET /api/v1/admin/crawl/jobs?page=1&size=10     → 2페이지, 10개씩
      *
-     * @param status   상태 필터 (선택, "PENDING"/"RUNNING"/"COMPLETED"/"FAILED")
+     * @param status   상태 필터 (선택, PENDING/RUNNING/COMPLETED/FAILED, 대소문자 무관)
      * @param pageable 페이징 정보 (기본 size=20, 최신순)
      * @return 200 OK + 페이징된 작업 이력
      */
     @GetMapping("/crawl/jobs")
     public ResponseEntity<ApiResponse<PageResponse<CrawlJobResponse>>> getCrawlJobs(
-            @RequestParam(required = false) String status,
+            @RequestParam(required = false) CrawlJobStatus status,
             @ParameterObject
             @PageableDefault(size = 20) Pageable pageable) {
         log.info("크롤링 작업 이력 조회: status={}, page={}, size={}",
                 status, pageable.getPageNumber(), pageable.getPageSize());
 
         PageResponse<CrawlJobResponse> response;
-        if (status != null && !status.isBlank()) {
-            response = crawlJobService.getJobsByStatus(status.toUpperCase(), pageable);
+        if (status != null) {
+            response = crawlJobService.getJobsByStatus(status, pageable);
         } else {
             response = crawlJobService.getAllJobs(pageable);
         }

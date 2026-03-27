@@ -118,10 +118,9 @@ public class CrawlJobServiceImpl implements CrawlJobService {
 
     @Override
     @Transactional(readOnly = true)
-    public PageResponse<CrawlJobResponse> getJobsByStatus(String status, Pageable pageable) {
-        CrawlJobStatus crawlJobStatus = CrawlJobStatus.valueOf(status);
+    public PageResponse<CrawlJobResponse> getJobsByStatus(CrawlJobStatus status, Pageable pageable) {
         Page<CrawlJob> page = crawlJobRepository
-                .findByStatusOrderByCreatedAtDesc(crawlJobStatus, pageable);
+                .findByStatusOrderByCreatedAtDesc(status, pageable);
         return toPageResponse(page);
     }
 

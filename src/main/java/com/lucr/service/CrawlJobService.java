@@ -100,9 +100,9 @@ public interface CrawlJobService {
      *   - 기존: List<CrawlJob> 반환 (페이징 없음, 내부 엔티티 노출)
      *   - 신규: PageResponse<CrawlJobResponse> 반환 (페이징 + DTO 변환)
      *
-     * @param status   상태 문자열 ("PENDING", "RUNNING", "COMPLETED", "FAILED")
+     * @param status   CrawlJobStatus enum (PENDING, RUNNING, COMPLETED, FAILED)
      * @param pageable 페이징 정보
      * @return 페이징된 CrawlJob 응답 목록
      */
-    PageResponse<CrawlJobResponse> getJobsByStatus(String status, Pageable pageable);
+    PageResponse<CrawlJobResponse> getJobsByStatus(CrawlJobStatus status, Pageable pageable);
 }

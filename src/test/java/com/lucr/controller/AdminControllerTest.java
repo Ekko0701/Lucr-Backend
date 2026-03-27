@@ -1,5 +1,6 @@
 package com.lucr.controller;
 
+import com.lucr.config.WebMvcConfig;
 import com.lucr.dto.response.CrawlJobResponse;
 import com.lucr.dto.response.PageResponse;
 import com.lucr.entity.CrawlJob;
@@ -33,6 +34,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willDoNothing;
 import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -47,7 +49,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * @author Ekko0701
  * @since 2026-01-28
  */
-@WebMvcTest(AdminController.class)
+@WebMvcTest({AdminController.class, WebMvcConfig.class})
 @WithMockUser(roles = "ADMIN")  // 모든 테스트에 ADMIN 역할 적용
 @DisplayName("AdminController 테스트")
 class AdminControllerTest {
@@ -372,7 +374,7 @@ class AdminControllerTest {
                     .hasNext(false)
                     .hasPrevious(false)
                     .build();
-            given(crawlJobService.getJobsByStatus(eq("COMPLETED"), any(Pageable.class)))
+            given(crawlJobService.getJobsByStatus(eq(CrawlJobStatus.COMPLETED), any(Pageable.class)))
                     .willReturn(pageResponse);
 
             mockMvc.perform(get("/api/v1/admin/crawl/jobs")
@@ -381,7 +383,7 @@ class AdminControllerTest {
                     .andExpect(jsonPath("$.success").value(true));
 
             then(crawlJobService).should(times(1))
-                    .getJobsByStatus(eq("COMPLETED"), any(Pageable.class));
+                    .getJobsByStatus(eq(CrawlJobStatus.COMPLETED), any(Pageable.class));
         }
 
         @Test
@@ -398,7 +400,7 @@ class AdminControllerTest {
                     .hasNext(false)
                     .hasPrevious(false)
                     .build();
-            given(crawlJobService.getJobsByStatus(eq("COMPLETED"), any(Pageable.class)))
+            given(crawlJobService.getJobsByStatus(eq(CrawlJobStatus.COMPLETED), any(Pageable.class)))
                     .willReturn(pageResponse);
 
             mockMvc.perform(get("/api/v1/admin/crawl/jobs")
@@ -407,7 +409,18 @@ class AdminControllerTest {
                     .andExpect(jsonPath("$.success").value(true));
 
             then(crawlJobService).should(times(1))
-                    .getJobsByStatus(eq("COMPLETED"), any(Pageable.class));
+                    .getJobsByStatus(eq(CrawlJobStatus.COMPLETED), any(Pageable.class));
+        }
+
+        @Test
+        @DisplayName("잘못된 상태값 - 400 Bad Request")
+        void getCrawlJobs_InvalidStatus_ReturnsBadRequest() throws Exception {
+            mockMvc.perform(get("/api/v1/admin/crawl/jobs")
+                            .param("status", "INVALID_STATUS"))
+                    .andExpect(status().isBadRequest());
+
+            then(crawlJobService).should(never()).getJobsByStatus(any(CrawlJobStatus.class), any(Pageable.class));
+            then(crawlJobService).should(never()).getAllJobs(any(Pageable.class));
         }
 
         @Test
