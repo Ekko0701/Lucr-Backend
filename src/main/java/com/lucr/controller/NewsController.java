@@ -9,6 +9,7 @@ import com.lucr.dto.response.NewsResponse;
 import com.lucr.dto.response.PageResponse;
 import com.lucr.service.NewsService;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +32,7 @@ import java.util.UUID;
  * @author kimdongjoo
  * @since 2026-01-28
  */
+@Tag(name = "뉴스", description = "뉴스 CRUD, 검색, 인기/최신 조회")
 @RestController
 @RequestMapping("/api/v1/news")
 @RequiredArgsConstructor

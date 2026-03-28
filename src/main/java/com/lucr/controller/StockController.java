@@ -7,6 +7,7 @@ import com.lucr.dto.response.PageResponse;
 import com.lucr.dto.response.StockResponse;
 import com.lucr.entity.Market;
 import com.lucr.service.StockService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,6 +37,7 @@ import org.springframework.web.bind.annotation.*;
  * @author Ekko0701
  * @since 2026-02-12
  */
+@Tag(name = "종목", description = "종목 CRUD, 검색, 시장별 조회")
 @RestController
 @RequestMapping("/api/v1/stocks")
 @RequiredArgsConstructor

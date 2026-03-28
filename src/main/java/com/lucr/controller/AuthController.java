@@ -8,6 +8,7 @@ import com.lucr.dto.response.TokenResponse;
 import com.lucr.dto.response.UserDetailResponse;
 import com.lucr.service.AuthService;
 import com.lucr.service.UserService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,6 +40,7 @@ import java.util.UUID;
  * @author Ekko0701
  * @since 2026-02-11
  */
+@Tag(name = "인증", description = "회원가입, 로그인, 토큰 갱신, 로그아웃")
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor

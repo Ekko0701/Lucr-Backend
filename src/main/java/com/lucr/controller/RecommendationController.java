@@ -4,6 +4,7 @@ import com.lucr.common.ApiResponse;
 import com.lucr.dto.response.PageResponse;
 import com.lucr.dto.response.RecommendationResponse;
 import com.lucr.service.RecommendationService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springdoc.core.annotations.ParameterObject;
@@ -30,6 +31,7 @@ import java.math.BigDecimal;
  * @author Ekko0701
  * @since 2026-03-09
  */
+@Tag(name = "투자 추천", description = "추천 목록 조회, 종목별 추천, 추천 갱신")
 @RestController
 @RequestMapping("/api/v1/recommendations")
 @RequiredArgsConstructor

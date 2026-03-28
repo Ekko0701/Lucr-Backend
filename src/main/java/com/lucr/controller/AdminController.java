@@ -7,6 +7,7 @@ import com.lucr.entity.CrawlJob;
 import com.lucr.entity.CrawlJob.CrawlJobStatus;
 import com.lucr.messaging.CrawlJobPublisher;
 import com.lucr.service.CrawlJobService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springdoc.core.annotations.ParameterObject;
@@ -33,6 +34,7 @@ import java.util.UUID;
  * @author Ekko0701
  * @since 2026-02-06
  */
+@Tag(name = "관리자", description = "크롤링 트리거, 작업 상태/이력 조회")
 @RestController
 @RequestMapping("/api/v1/admin")
 @RequiredArgsConstructor
