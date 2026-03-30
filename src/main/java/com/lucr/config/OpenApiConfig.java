@@ -1,13 +1,24 @@
 package com.lucr.config;
 
+import com.lucr.config.openapi.OpenApiConstants;
+import com.lucr.exception.ErrorCode;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Contact;
 import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.media.Content;
+import io.swagger.v3.oas.models.media.MediaType;
+import io.swagger.v3.oas.models.media.Schema;
+import io.swagger.v3.oas.models.responses.ApiResponse;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * OpenAPI(Swagger) 설정
@@ -96,6 +107,94 @@ public class OpenApiConfig {
                 .bearerFormat("JWT")
                 .description("JWT 액세스 토큰을 입력하세요. (Bearer 접두사 없이 토큰만 입력)");
 
-        return new Components().addSecuritySchemes(SECURITY_SCHEME_NAME, securityScheme);
+        return new Components()
+                .addSecuritySchemes(SECURITY_SCHEME_NAME, securityScheme)
+                .addResponses(OpenApiConstants.UNAUTHORIZED_RESPONSE_NAME, unauthorizedResponse())
+                .addResponses(OpenApiConstants.FORBIDDEN_RESPONSE_NAME, forbiddenResponse())
+                .addResponses(OpenApiConstants.VALIDATION_ERROR_RESPONSE_NAME, validationErrorResponse())
+                .addResponses(OpenApiConstants.MISSING_PARAMETER_RESPONSE_NAME, missingParameterResponse())
+                .addResponses(OpenApiConstants.INVALID_TYPE_RESPONSE_NAME, invalidTypeResponse());
+    }
+
+    private ApiResponse unauthorizedResponse() {
+        return errorResponse(
+                "인증이 필요합니다. (E401004)",
+                errorExample(ErrorCode.UNAUTHORIZED_ACCESS)
+        );
+    }
+
+    private ApiResponse forbiddenResponse() {
+        return errorResponse(
+                "접근 권한이 없습니다. (E403001)",
+                errorExample(ErrorCode.ACCESS_DENIED)
+        );
+    }
+
+    private ApiResponse validationErrorResponse() {
+        Map<String, Object> fieldError = new LinkedHashMap<>();
+        fieldError.put("field", "email");
+        fieldError.put("value", "abc");
+        fieldError.put("reason", "이메일 형식이어야 합니다.");
+
+        return errorResponse(
+                "요청 값 검증 실패 (E400001)",
+                errorExample(
+                        ErrorCode.INVALID_INPUT_VALUE,
+                        ErrorCode.INVALID_INPUT_VALUE.getMessage(),
+                        List.of(fieldError)
+                )
+        );
+    }
+
+    private ApiResponse missingParameterResponse() {
+        return errorResponse(
+                "필수 파라미터 누락 (E400003)",
+                errorExample(
+                        ErrorCode.MISSING_REQUEST_PARAMETER,
+                        "'email' 파라미터가 누락되었습니다."
+                )
+        );
+    }
+
+    private ApiResponse invalidTypeResponse() {
+        return errorResponse(
+                "파라미터 타입 불일치 (E400002)",
+                errorExample(
+                        ErrorCode.INVALID_TYPE_VALUE,
+                        "'status' 파라미터의 타입이 올바르지 않습니다."
+                )
+        );
+    }
+
+    private ApiResponse errorResponse(String description, Map<String, Object> example) {
+        MediaType mediaType = new MediaType()
+                .schema(new Schema<>().$ref(OpenApiConstants.ERROR_RESPONSE_SCHEMA_REF))
+                .example(example);
+
+        return new ApiResponse()
+                .description(description)
+                .content(new Content().addMediaType("application/json", mediaType));
+    }
+
+    private Map<String, Object> errorExample(ErrorCode errorCode) {
+        return errorExample(errorCode, errorCode.getMessage(), List.of());
+    }
+
+    private Map<String, Object> errorExample(ErrorCode errorCode, String message) {
+        return errorExample(errorCode, message, List.of());
+    }
+
+    private Map<String, Object> errorExample(
+            ErrorCode errorCode,
+            String message,
+            List<Map<String, Object>> errors
+    ) {
+        Map<String, Object> example = new LinkedHashMap<>();
+        example.put("code", errorCode.getCode());
+        example.put("message", message);
+        example.put("status", errorCode.getStatus().value());
+        example.put("timestamp", LocalDateTime.of(2026, 3, 30, 12, 34, 56).toString());
+        example.put("errors", errors);
+        return example;
     }
 }

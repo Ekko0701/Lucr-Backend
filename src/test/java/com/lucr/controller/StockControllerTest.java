@@ -102,13 +102,13 @@ class StockControllerTest {
         }
 
         @Bean
-        JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint() {
-            return new JwtAuthenticationEntryPoint();
+        JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint(ObjectMapper objectMapper) {
+            return new JwtAuthenticationEntryPoint(objectMapper);
         }
 
         @Bean
-        JwtAccessDeniedHandler jwtAccessDeniedHandler() {
-            return new JwtAccessDeniedHandler();
+        JwtAccessDeniedHandler jwtAccessDeniedHandler(ObjectMapper objectMapper) {
+            return new JwtAccessDeniedHandler(objectMapper);
         }
 
         // FilterRegistrationBean은 SecurityConfig.disableJwtFilterAutoRegistration()에서 제공
@@ -219,7 +219,13 @@ class StockControllerTest {
                                     .contentType(MediaType.APPLICATION_JSON)
                                     .content(objectMapper.writeValueAsString(validCreateRequest))
                     )
-                    .andExpect(status().isForbidden());
+                    .andExpect(status().isForbidden())
+                    .andExpect(jsonPath("$.code").value("E403001"))
+                    .andExpect(jsonPath("$.message").value("접근 권한이 없습니다."))
+                    .andExpect(jsonPath("$.status").value(403))
+                    .andExpect(jsonPath("$.timestamp").exists())
+                    .andExpect(jsonPath("$.errors").isArray())
+                    .andExpect(jsonPath("$.errors").isEmpty());
 
             then(stockService).should(never()).createStock(any());
         }
@@ -233,7 +239,13 @@ class StockControllerTest {
                                     .contentType(MediaType.APPLICATION_JSON)
                                     .content(objectMapper.writeValueAsString(validCreateRequest))
                     )
-                    .andExpect(status().isUnauthorized());
+                    .andExpect(status().isUnauthorized())
+                    .andExpect(jsonPath("$.code").value("E401004"))
+                    .andExpect(jsonPath("$.message").value("인증이 필요합니다. 유효한 토큰을 포함하여 요청해주세요."))
+                    .andExpect(jsonPath("$.status").value(401))
+                    .andExpect(jsonPath("$.timestamp").exists())
+                    .andExpect(jsonPath("$.errors").isArray())
+                    .andExpect(jsonPath("$.errors").isEmpty());
         }
 
         @Test

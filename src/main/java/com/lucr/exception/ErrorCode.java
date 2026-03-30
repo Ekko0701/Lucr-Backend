@@ -27,7 +27,7 @@ public enum ErrorCode {
     /** JWT 서명 불일치, 형식 오류, 지원하지 않는 토큰 등 */
     INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "E401003", "유효하지 않은 토큰입니다."),
     /** Authorization 헤더 누락 또는 Bearer 토큰 미제공 */
-    UNAUTHORIZED_ACCESS(HttpStatus.UNAUTHORIZED, "E401004", "인증이 필요합니다."),
+    UNAUTHORIZED_ACCESS(HttpStatus.UNAUTHORIZED, "E401004", "인증이 필요합니다. 유효한 토큰을 포함하여 요청해주세요."),
 
     // 403 Forbidden — 인가 실패
     /** 인증은 되었으나 해당 리소스에 대한 권한이 없을 때 (RBAC) */

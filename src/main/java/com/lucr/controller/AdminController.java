@@ -1,12 +1,21 @@
 package com.lucr.controller;
 
+import static com.lucr.config.openapi.OpenApiConstants.FORBIDDEN_RESPONSE_REF;
+import static com.lucr.config.openapi.OpenApiConstants.INVALID_TYPE_RESPONSE_REF;
+import static com.lucr.config.openapi.OpenApiConstants.UNAUTHORIZED_RESPONSE_REF;
+
 import com.lucr.common.ApiResponse;
 import com.lucr.dto.response.CrawlJobResponse;
 import com.lucr.dto.response.PageResponse;
 import com.lucr.entity.CrawlJob;
 import com.lucr.entity.CrawlJob.CrawlJobStatus;
+import com.lucr.exception.ErrorResponse;
 import com.lucr.messaging.CrawlJobPublisher;
 import com.lucr.service.CrawlJobService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -56,6 +65,21 @@ public class AdminController {
      * @param maxArticles 언론사당 최대 수집 기사 수 (기본값: 50)
      * @return 201 Created + 생성된 작업 정보
      */
+    @Operation(summary = "크롤링 트리거", description = "크롤링 작업을 생성하고 RabbitMQ에 요청을 발행합니다. ADMIN 권한이 필요합니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "크롤링 작업 생성 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = UNAUTHORIZED_RESPONSE_REF),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", ref = FORBIDDEN_RESPONSE_REF),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", ref = INVALID_TYPE_RESPONSE_REF),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "409",
+                    description = "이미 실행 중인 크롤링 작업 존재 (E409003)",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class)
+                    )
+            )
+    })
     @PostMapping("/crawl/trigger")
     public ResponseEntity<ApiResponse<CrawlJobResponse>> triggerCrawl(
             @RequestParam(defaultValue = "50") int maxArticles
@@ -87,6 +111,20 @@ public class AdminController {
      * @param jobId 작업 UUID
      * @return 200 OK + 작업 상태 정보
      */
+    @Operation(summary = "작업 상태 조회", description = "크롤링 작업 ID로 진행 상태를 조회합니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = UNAUTHORIZED_RESPONSE_REF),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", ref = FORBIDDEN_RESPONSE_REF),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "404",
+                    description = "작업을 찾을 수 없음 (E404003)",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class)
+                    )
+            )
+    })
     @GetMapping("/crawl/jobs/{jobId}")
     public ResponseEntity<ApiResponse<CrawlJobResponse>> getJobStatus(@PathVariable UUID jobId) {
         log.info("크롤링 작업 상태 조회: jobId={}", jobId);
@@ -114,6 +152,13 @@ public class AdminController {
      * @param pageable 페이징 정보 (기본 size=20, 최신순)
      * @return 200 OK + 페이징된 작업 이력
      */
+    @Operation(summary = "작업 이력 조회", description = "크롤링 작업 이력을 조회합니다. status 파라미터로 상태별 필터링이 가능합니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = UNAUTHORIZED_RESPONSE_REF),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", ref = FORBIDDEN_RESPONSE_REF),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", ref = INVALID_TYPE_RESPONSE_REF)
+    })
     @GetMapping("/crawl/jobs")
     public ResponseEntity<ApiResponse<PageResponse<CrawlJobResponse>>> getCrawlJobs(
             @RequestParam(required = false) CrawlJobStatus status,

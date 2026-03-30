@@ -1,5 +1,10 @@
 package com.lucr.controller;
 
+import static com.lucr.config.openapi.OpenApiConstants.FORBIDDEN_RESPONSE_REF;
+import static com.lucr.config.openapi.OpenApiConstants.MISSING_PARAMETER_RESPONSE_REF;
+import static com.lucr.config.openapi.OpenApiConstants.UNAUTHORIZED_RESPONSE_REF;
+import static com.lucr.config.openapi.OpenApiConstants.VALIDATION_ERROR_RESPONSE_REF;
+
 import com.lucr.common.ApiResponse;
 import com.lucr.dto.request.NewsCreateRequest;
 import com.lucr.dto.request.NewsSearchRequest;
@@ -7,8 +12,12 @@ import com.lucr.dto.request.NewsUpdateRequest;
 import com.lucr.dto.response.NewsDetailResponse;
 import com.lucr.dto.response.NewsResponse;
 import com.lucr.dto.response.PageResponse;
+import com.lucr.exception.ErrorResponse;
 import com.lucr.service.NewsService;
-import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -49,6 +58,21 @@ public class NewsController {
      * @param request 뉴스 생성 요청
      * @return 201 Created + 생성된 뉴스 상세 정보
      */
+    @Operation(summary = "뉴스 생성", description = "새 뉴스 기사를 등록합니다. Python 크롤러에서 호출됩니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "뉴스 생성 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = UNAUTHORIZED_RESPONSE_REF),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", ref = FORBIDDEN_RESPONSE_REF),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", ref = VALIDATION_ERROR_RESPONSE_REF),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "409",
+                    description = "중복된 URL (E409002)",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class)
+                    )
+            )
+    })
     @PostMapping
     public ResponseEntity<ApiResponse<NewsDetailResponse>> createNews(
             @Valid @RequestBody NewsCreateRequest request
@@ -71,6 +95,19 @@ public class NewsController {
      * @param request HTTP 요청 (IP, 인증 정보 추출용)
      * @return 200 OK + 뉴스 상세 정보
      */
+    @Operation(summary = "뉴스 단건 조회", description = "뉴스 ID로 상세 정보를 조회합니다. 조회수가 자동으로 기록됩니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = UNAUTHORIZED_RESPONSE_REF),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "404",
+                    description = "뉴스를 찾을 수 없음 (E404002)",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class)
+                    )
+            )
+    })
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<NewsDetailResponse>> getNews(
             @PathVariable UUID id,
@@ -90,6 +127,11 @@ public class NewsController {
      * @param pageable 페이징 정보 (page, size, sort)
      * @return 200 OK + 뉴스 목록 (페이징)
      */
+    @Operation(summary = "뉴스 목록 조회", description = "전체 뉴스를 페이징하여 조회합니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = UNAUTHORIZED_RESPONSE_REF)
+    })
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<NewsResponse>>> getAllNews(
             @ParameterObject
@@ -112,6 +154,21 @@ public class NewsController {
      * @param request 수정 요청 (null이 아닌 필드만 업데이트)
      * @return 200 OK + 수정된 뉴스 상세 정보
      */
+    @Operation(summary = "뉴스 수정", description = "뉴스 ID로 기사를 수정합니다. null이 아닌 필드만 업데이트됩니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "수정 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = UNAUTHORIZED_RESPONSE_REF),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", ref = FORBIDDEN_RESPONSE_REF),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", ref = VALIDATION_ERROR_RESPONSE_REF),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "404",
+                    description = "뉴스를 찾을 수 없음 (E404002)",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class)
+                    )
+            )
+    })
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<NewsDetailResponse>> updateNews(
             @PathVariable UUID id,
@@ -131,6 +188,20 @@ public class NewsController {
      * @param id 삭제할 뉴스 ID
      * @return 200 OK + 삭제 성공 메시지
      */
+    @Operation(summary = "뉴스 삭제", description = "뉴스 ID로 기사를 삭제합니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "삭제 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = UNAUTHORIZED_RESPONSE_REF),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", ref = FORBIDDEN_RESPONSE_REF),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "404",
+                    description = "뉴스를 찾을 수 없음 (E404002)",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class)
+                    )
+            )
+    })
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteNews(@PathVariable UUID id) {
         log.info("뉴스 삭제 요청: id={}", id);
@@ -149,6 +220,11 @@ public class NewsController {
      * @param pageable 페이징 정보
      * @return 200 OK + 인기 뉴스 목록 (페이징)
      */
+    @Operation(summary = "인기 뉴스 조회", description = "조회수가 높은 순으로 뉴스를 페이징 조회합니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = UNAUTHORIZED_RESPONSE_REF)
+    })
     @GetMapping("/popular")
     public ResponseEntity<ApiResponse<PageResponse<NewsResponse>>> getPopularNews(
             @ParameterObject
@@ -168,6 +244,11 @@ public class NewsController {
      * @param pageable 페이징 정보
      * @return 200 OK + 최신 뉴스 목록 (페이징)
      */
+    @Operation(summary = "최신 뉴스 조회", description = "생성일 기준 최신순으로 뉴스를 페이징 조회합니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = UNAUTHORIZED_RESPONSE_REF)
+    })
     @GetMapping("/recent")
     public ResponseEntity<ApiResponse<PageResponse<NewsResponse>>> getRecentNews(
             @ParameterObject
@@ -190,6 +271,12 @@ public class NewsController {
      * @param pageable 페이징 정보
      * @return 200 OK + 검색 결과 (페이징)
      */
+    @Operation(summary = "키워드 검색", description = "키워드로 뉴스를 검색합니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "검색 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = UNAUTHORIZED_RESPONSE_REF),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", ref = MISSING_PARAMETER_RESPONSE_REF)
+    })
     @GetMapping("/search")
     public ResponseEntity<ApiResponse<PageResponse<NewsResponse>>> searchByKeyword(
             @RequestParam String keyword,
@@ -211,6 +298,13 @@ public class NewsController {
      * @param searchRequest 검색 조건 (keyword, source, minViewCount, sentimentScore, date 등)
      * @return 200 OK + 검색 결과 (페이징)
      */
+    @Operation(summary = "고급 검색", description = "키워드, 출처, 최소 조회수, 감정 점수, 날짜 등 복합 조건으로 뉴스를 검색합니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "검색 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = UNAUTHORIZED_RESPONSE_REF),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", ref = FORBIDDEN_RESPONSE_REF),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", ref = VALIDATION_ERROR_RESPONSE_REF)
+    })
     @PostMapping("/search/advanced")
     public ResponseEntity<ApiResponse<PageResponse<NewsResponse>>> advancedSearch(
             @Valid @RequestBody NewsSearchRequest searchRequest
@@ -231,6 +325,11 @@ public class NewsController {
      * @param pageable 페이징 정보
      * @return 200 OK + 해당 출처의 뉴스 목록 (페이징)
      */
+    @Operation(summary = "출처별 뉴스 조회", description = "뉴스 출처(예: NAVER_FINANCE, DAUM_FINANCE)별로 뉴스를 조회합니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = UNAUTHORIZED_RESPONSE_REF)
+    })
     @GetMapping("/source/{source}")
     public ResponseEntity<ApiResponse<PageResponse<NewsResponse>>> getNewsBySource(
             @PathVariable String source,
@@ -254,6 +353,12 @@ public class NewsController {
      * @param url 확인할 URL
      * @return 200 OK + 중복 여부
      */
+    @Operation(summary = "URL 중복 확인", description = "뉴스 URL이 이미 등록되어 있는지 확인합니다. 크롤러 중복 체크용입니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "확인 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = UNAUTHORIZED_RESPONSE_REF),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", ref = MISSING_PARAMETER_RESPONSE_REF)
+    })
     @GetMapping("/exists")
     public ResponseEntity<ApiResponse<Boolean>> checkUrlExists(@RequestParam String url) {
         log.info("URL 중복 확인 요청: url={}", url);

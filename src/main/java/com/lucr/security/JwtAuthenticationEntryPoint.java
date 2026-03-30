@@ -1,13 +1,19 @@
 package com.lucr.security;
 
+import com.lucr.exception.ErrorCode;
+import com.lucr.exception.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 /**
  * 인증되지 않은 요청에 대한 401 Unauthorized 응답 처리
@@ -34,7 +40,10 @@ import java.io.IOException;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
+
+    private final ObjectMapper objectMapper;
 
     /**
      * 인증 실패 시 401 JSON 응답 반환
@@ -52,15 +61,11 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
     ) throws IOException {
         log.warn("인증 실패 — URI: {}, 메시지: {}", request.getRequestURI(), authException.getMessage());
 
-        response.setContentType("application/json;charset=UTF-8");
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-        response.getWriter().write("""
-                {
-                    "success": false,
-                    "code": "E401004",
-                    "message": "인증이 필요합니다. 유효한 토큰을 포함하여 요청해주세요.",
-                    "status": 401
-                }
-                """);
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+
+        ErrorResponse errorResponse = ErrorResponse.of(ErrorCode.UNAUTHORIZED_ACCESS);
+        objectMapper.writeValue(response.getWriter(), errorResponse);
     }
 }

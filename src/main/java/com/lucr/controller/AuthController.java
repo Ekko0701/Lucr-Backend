@@ -1,13 +1,23 @@
 package com.lucr.controller;
 
+import static com.lucr.config.openapi.OpenApiConstants.MISSING_PARAMETER_RESPONSE_REF;
+import static com.lucr.config.openapi.OpenApiConstants.UNAUTHORIZED_RESPONSE_REF;
+import static com.lucr.config.openapi.OpenApiConstants.VALIDATION_ERROR_RESPONSE_REF;
+
 import com.lucr.common.ApiResponse;
 import com.lucr.dto.request.LoginRequest;
 import com.lucr.dto.request.RegisterRequest;
 import com.lucr.dto.request.TokenRefreshRequest;
 import com.lucr.dto.response.TokenResponse;
 import com.lucr.dto.response.UserDetailResponse;
+import com.lucr.exception.ErrorResponse;
 import com.lucr.service.AuthService;
 import com.lucr.service.UserService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -60,6 +70,23 @@ public class AuthController {
      * @param request 회원가입 요청 (email, password, name)
      * @return 201 Created + 생성된 사용자 상세 정보
      */
+    @Operation(summary = "회원가입", description = "이메일, 비밀번호, 이름으로 새 사용자를 등록합니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "회원가입 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    ref = VALIDATION_ERROR_RESPONSE_REF
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "409",
+                    description = "이미 존재하는 이메일 (E409004)",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class)
+                    )
+            )
+    })
+    @SecurityRequirements
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<UserDetailResponse>> register(
             @Valid @RequestBody RegisterRequest request
@@ -84,6 +111,15 @@ public class AuthController {
      * @param email 확인할 이메일 주소
      * @return 200 OK + 중복 여부 (true: 이미 존재, false: 사용 가능)
      */
+    @Operation(summary = "이메일 중복 확인", description = "입력한 이메일이 이미 사용 중인지 확인합니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "확인 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    ref = MISSING_PARAMETER_RESPONSE_REF
+            )
+    })
+    @SecurityRequirements
     @GetMapping("/check-email")
     public ResponseEntity<ApiResponse<Boolean>> checkEmail(@RequestParam String email) {
         log.info("이메일 중복 확인 요청: email={}", email);
@@ -128,6 +164,31 @@ public class AuthController {
      * @param request 로그인 요청 (email, password)
      * @return 200 OK + AccessToken + RefreshToken
      */
+    @Operation(summary = "로그인", description = "이메일/비밀번호 검증 후 JWT 토큰 쌍(Access + Refresh)을 발급합니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "로그인 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    ref = VALIDATION_ERROR_RESPONSE_REF
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "401",
+                    description = "비밀번호 불일치 (E401001)",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class)
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "404",
+                    description = "사용자를 찾을 수 없음 또는 비활성 계정 (E404004)",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class)
+                    )
+            )
+    })
+    @SecurityRequirements
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<TokenResponse>> login(
             @Valid @RequestBody LoginRequest request
@@ -171,6 +232,31 @@ public class AuthController {
      * @param request RefreshToken
      * @return 200 OK + 새 AccessToken
      */
+    @Operation(summary = "토큰 갱신", description = "RefreshToken으로 새 AccessToken을 발급합니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "토큰 갱신 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    ref = VALIDATION_ERROR_RESPONSE_REF
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "401",
+                    description = "만료되었거나 유효하지 않은 RefreshToken (E401002, E401003)",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class)
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "404",
+                    description = "RefreshToken을 찾을 수 없음 (E404005)",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class)
+                    )
+            )
+    })
+    @SecurityRequirements
     @PostMapping("/refresh")
     public ResponseEntity<ApiResponse<TokenResponse>> refresh(
             @Valid @RequestBody TokenRefreshRequest request
@@ -203,6 +289,14 @@ public class AuthController {
      *
      * @return 200 OK
      */
+    @Operation(summary = "로그아웃", description = "인증된 사용자의 RefreshToken을 삭제하여 토큰 갱신을 차단합니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "로그아웃 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "401",
+                    ref = UNAUTHORIZED_RESPONSE_REF
+            )
+    })
     @PostMapping("/logout")
     public ResponseEntity<ApiResponse<Void>> logout() {
         // SecurityContext에서 인증된 사용자 ID 추출

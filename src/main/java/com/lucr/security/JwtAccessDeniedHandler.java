@@ -1,13 +1,19 @@
 package com.lucr.security;
 
+import com.lucr.exception.ErrorCode;
+import com.lucr.exception.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 /**
  * 권한 부족 요청에 대한 403 Forbidden 응답 처리
@@ -36,7 +42,10 @@ import java.io.IOException;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class JwtAccessDeniedHandler implements AccessDeniedHandler {
+
+    private final ObjectMapper objectMapper;
 
     /**
      * 접근 거부 시 403 JSON 응답 반환
@@ -54,15 +63,11 @@ public class JwtAccessDeniedHandler implements AccessDeniedHandler {
     ) throws IOException {
         log.warn("접근 거부 — URI: {}, 메시지: {}", request.getRequestURI(), accessDeniedException.getMessage());
 
-        response.setContentType("application/json;charset=UTF-8");
         response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-        response.getWriter().write("""
-                {
-                    "success": false,
-                    "code": "E403001",
-                    "message": "접근 권한이 없습니다.",
-                    "status": 403
-                }
-                """);
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+
+        ErrorResponse errorResponse = ErrorResponse.of(ErrorCode.ACCESS_DENIED);
+        objectMapper.writeValue(response.getWriter(), errorResponse);
     }
 }
