@@ -1,5 +1,6 @@
 package com.lucr.dto.request;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -15,17 +16,28 @@ import lombok.NoArgsConstructor;
  * @author Ekko0701
  * @since 2026-02-11
  */
+@Schema(description = "회원가입 요청")
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class RegisterRequest {
 
+    @Schema(
+            description = "이메일 주소",
+            example = "user@example.com",
+            requiredMode = Schema.RequiredMode.REQUIRED
+    )
     @NotBlank(message = "이메일은 필수입니다.")
     @Email(message = "올바른 이메일 형식이 아닙니다.")
     @Size(max = 255, message = "이메일은 255자 이하여야 합니다.")
     private String email;
 
+    @Schema(
+            description = "비밀번호 (영문+숫자+특수문자, 8자 이상)",
+            example = "Password@123",
+            requiredMode = Schema.RequiredMode.REQUIRED
+    )
     @NotBlank(message = "비밀번호는 필수입니다.")
     @Size(min = 8, max = 100, message = "비밀번호는 8자 이상 100자 이하여야 합니다.")
     @Pattern(
@@ -34,6 +46,11 @@ public class RegisterRequest {
     )
     private String password;
 
+    @Schema(
+            description = "사용자 이름",
+            example = "홍길동",
+            requiredMode = Schema.RequiredMode.REQUIRED
+    )
     @NotBlank(message = "이름은 필수입니다.")
     @Size(min = 2, max = 100, message = "이름은 2자 이상 100자 이하여야 합니다.")
     private String name;

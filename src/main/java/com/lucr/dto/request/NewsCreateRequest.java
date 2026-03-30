@@ -1,5 +1,6 @@
 package com.lucr.dto.request;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
@@ -19,63 +20,48 @@ import java.time.LocalDateTime;
  * @author Kim Dongjoo
  * @since 2026-01-28
  */
+@Schema(description = "뉴스 생성 요청")
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class NewsCreateRequest {
-    
-    /**
-     * 뉴스 제목 (필수)
-     * 
-     * Validation:
-     * - @NotBlank: null, 빈 문자열, 공백만 있는 문자열 불가
-     * - @Size: 최소 5자, 최대 500자
-     */
+
+    @Schema(
+            description = "뉴스 제목",
+            example = "삼성전자 주가 급등, 반도체 호황 영향",
+            requiredMode = Schema.RequiredMode.REQUIRED
+    )
     @NotBlank(message = "뉴스 제목은 필수입니다.")
     @Size(min = 5, max = 500, message = "뉴스 제목은 5자 이상 500자 이하여야 합니다.")
     private String title;
-    
-    /**
-     * 뉴스 본문 (필수)
-     * 
-     * Validation:
-     * - @NotBlank: null, 빈 문자열 불가
-     * - @Size: 최소 10자
-     */
+
+    @Schema(
+            description = "뉴스 본문",
+            example = "삼성전자가 반도체 호황에 힘입어 주가가 급등했다...",
+            requiredMode = Schema.RequiredMode.REQUIRED
+    )
     @NotBlank(message = "뉴스 본문은 필수입니다.")
     @Size(min = 10, message = "뉴스 본문은 10자 이상이어야 합니다.")
     private String content;
-    
-    /**
-     * 뉴스 출처 (필수)
-     * 
-     * 예시: NAVER_FINANCE, DAUM_FINANCE
-     * 
-     * Validation:
-     * - @NotBlank: null, 빈 문자열 불가
-     * - @Size: 최대 100자
-     */
+
+    @Schema(
+            description = "뉴스 출처",
+            example = "NAVER_FINANCE",
+            requiredMode = Schema.RequiredMode.REQUIRED
+    )
     @NotBlank(message = "뉴스 출처는 필수입니다.")
     @Size(max = 100, message = "뉴스 출처는 100자 이하여야 합니다.")
     private String source;
-    
-    /**
-     * 뉴스 URL (필수)
-     * 
-     * 중복 체크에 사용
-     * 
-     * Validation:
-     * - @NotBlank: null, 빈 문자열 불가
-     */
+
+    @Schema(
+            description = "뉴스 URL (중복 체크 대상)",
+            example = "https://news.example.com/article/123",
+            requiredMode = Schema.RequiredMode.REQUIRED
+    )
     @NotBlank(message = "뉴스 URL은 필수입니다.")
     private String url;
-    
-    /**
-     * 뉴스 발행 시간 (선택)
-     * 
-     * 크롤링한 뉴스의 원본 발행 시간
-     * null이면 현재 시간으로 설정됨
-     */
+
+    @Schema(description = "뉴스 발행 시간 (null이면 현재 시간)", example = "2026-03-30T09:00:00")
     private LocalDateTime publishedAt;
 }

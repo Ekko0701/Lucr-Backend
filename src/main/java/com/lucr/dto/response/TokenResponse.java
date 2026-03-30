@@ -1,5 +1,6 @@
 package com.lucr.dto.response;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -54,47 +55,24 @@ import lombok.NoArgsConstructor;
  * @author Ekko0701
  * @since 2026-02-11
  */
+@Schema(description = "토큰 응답")
 @Getter
 @NoArgsConstructor   // Jackson 직렬화용 기본 생성자
 @AllArgsConstructor  // Builder 내부에서 사용
 @Builder
 public class TokenResponse {
 
-    /**
-     * JWT AccessToken
-     *
-     * <p>API 요청 시 {@code Authorization: Bearer {accessToken}} 헤더에 포함합니다.
-     * 서버의 {@code JwtAuthenticationFilter}가 이 토큰을 추출하여 인증을 수행합니다.</p>
-     */
+    @Schema(description = "JWT 액세스 토큰", example = "eyJhbGciOiJIUzI1NiJ9...")
     private String accessToken;
 
-    /**
-     * JWT RefreshToken
-     *
-     * <p>로그인 응답에서는 값이 포함되고, 토큰 갱신 응답에서는 {@code null}입니다.
-     * 클라이언트는 이 토큰을 안전하게 저장하고 AccessToken 만료 시 갱신 요청에 사용합니다.</p>
-     */
+    @Schema(description = "JWT 리프레시 토큰 (로그인 응답에서만 포함, 토큰 갱신 응답에서는 null)", nullable = true)
     private String refreshToken;
 
-    /**
-     * 토큰 타입 (OAuth 2.0 표준)
-     *
-     * <p>항상 "Bearer"입니다.
-     * 클라이언트가 Authorization 헤더를 구성할 때 이 값을 접두사로 사용합니다.</p>
-     *
-     * <p>예: {@code Authorization: Bearer eyJhbGciOi...}</p>
-     */
+    @Schema(description = "토큰 타입", example = "Bearer")
     @Builder.Default
     private String tokenType = "Bearer";
 
-    /**
-     * AccessToken 만료까지 남은 시간 (초 단위)
-     *
-     * <p>클라이언트가 토큰 갱신 타이밍을 계산하는 데 사용합니다.
-     * 예: 1800 → 30분 후 만료</p>
-     *
-     * <p>권장 전략: {@code expiresIn}의 80~90% 시점에 미리 갱신 요청</p>
-     */
+    @Schema(description = "액세스 토큰 만료 시간 (초)", example = "1800")
     private long expiresIn;
 
     /**

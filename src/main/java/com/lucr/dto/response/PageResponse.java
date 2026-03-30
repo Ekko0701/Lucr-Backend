@@ -1,5 +1,6 @@
 package com.lucr.dto.response;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -21,6 +22,7 @@ import java.io.Serializable;
  * @author Kim Dongjoo
  * @since 2026-01-28
  */
+@Schema(description = "페이징 응답 래퍼")
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
@@ -28,52 +30,24 @@ import java.io.Serializable;
 public class PageResponse<T> implements Serializable {
 
     private static final long serialVersionUID = 1L;
-    
-    /**
-     * 실제 데이터 목록
-     * 
-     * 예: List<NewsResponse>
-     */
+
+    @Schema(description = "데이터 목록")
     private List<T> content;
-    
-    /**
-     * 현재 페이지 번호 (0부터 시작)
-     */
+    @Schema(description = "현재 페이지 번호 (0부터 시작)", example = "0")
     private Integer currentPage;
-    
-    /**
-     * 페이지 크기 (한 페이지당 항목 수)
-     */
+    @Schema(description = "페이지 크기", example = "20")
     private Integer pageSize;
-    
-    /**
-     * 전체 항목 수
-     */
+    @Schema(description = "전체 항목 수", example = "125")
     private Long totalElements;
-    
-    /**
-     * 전체 페이지 수
-     */
+    @Schema(description = "전체 페이지 수", example = "7")
     private Integer totalPages;
-    
-    /**
-     * 첫 페이지 여부
-     */
+    @Schema(description = "첫 페이지 여부", example = "true")
     private Boolean isFirst;
-    
-    /**
-     * 마지막 페이지 여부
-     */
+    @Schema(description = "마지막 페이지 여부", example = "false")
     private Boolean isLast;
-    
-    /**
-     * 다음 페이지 존재 여부
-     */
+    @Schema(description = "다음 페이지 존재 여부", example = "true")
     private Boolean hasNext;
-    
-    /**
-     * 이전 페이지 존재 여부
-     */
+    @Schema(description = "이전 페이지 존재 여부", example = "false")
     private Boolean hasPrevious;
     
     /**

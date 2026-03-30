@@ -1,6 +1,7 @@
 package com.lucr.dto.response;
 
 import com.lucr.entity.CrawlJob;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -19,34 +20,35 @@ import java.util.UUID;
  * @author Ekko0701
  * @since 2026-02-06
  */
+@Schema(description = "크롤링 작업 응답")
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class CrawlJobResponse {
 
-    /** 작업 고유 ID */
+    @Schema(description = "작업 ID", example = "550e8400-e29b-41d4-a716-446655440000")
     private UUID id;
-
-    /** 작업 상태 (PENDING / RUNNING / COMPLETED / FAILED) */
+    @Schema(
+            description = "작업 상태",
+            example = "COMPLETED",
+            allowableValues = {"PENDING", "RUNNING", "COMPLETED", "FAILED"}
+    )
     private String status;
-
-    /** 수집된 총 기사 수 */
+    @Schema(description = "수집된 총 기사 수", example = "150")
     private Integer totalArticles;
-
-    /** 언론사별 수집 결과 JSON */
+    @Schema(
+            description = "언론사별 수집 결과 JSON 문자열. 클라이언트에서는 JSON 파싱 후 사용합니다.",
+            example = "{\\\"naver\\\":{\\\"success\\\":50,\\\"failed\\\":2},\\\"daum\\\":{\\\"success\\\":45,\\\"failed\\\":1}}"
+    )
     private String mediaResults;
-
-    /** 에러 메시지 (실패 시) */
+    @Schema(description = "에러 메시지 (실패 시)", example = "RabbitMQ publish failed")
     private String errorMessage;
-
-    /** 작업 생성 시간 */
+    @Schema(description = "작업 생성 시간", example = "2026-03-30T10:00:00")
     private LocalDateTime createdAt;
-
-    /** 작업 수정 시간 */
+    @Schema(description = "작업 수정 시간", example = "2026-03-30T10:05:00")
     private LocalDateTime updatedAt;
-
-    /** 작업 완료 시간 */
+    @Schema(description = "작업 완료 시간", example = "2026-03-30T10:10:00")
     private LocalDateTime completedAt;
 
     // ========== 변환 메서드 ==========

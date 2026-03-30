@@ -1,5 +1,6 @@
 package com.lucr.dto.request;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Min;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -19,116 +20,57 @@ import java.time.LocalDateTime;
  * @author Kim Dongjoo
  * @since 2026-01-28
  */
+@Schema(description = "뉴스 고급 검색 요청 (모든 필드 선택적)")
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class NewsSearchRequest {
-    
-    /**
-     * 검색 키워드 (선택)
-     * 
-     * 제목 또는 본문에 포함된 키워드 검색
-     * 예시: "삼성전자", "반도체", "주가"
-     */
+
+    @Schema(description = "검색 키워드 (제목/본문)", example = "삼성전자")
     private String keyword;
-    
-    /**
-     * 뉴스 출처 (선택)
-     * 
-     * 특정 출처의 뉴스만 검색
-     * 예시: "NAVER_FINANCE"
-     */
+
+    @Schema(description = "뉴스 출처", example = "NAVER_FINANCE")
     private String source;
-    
-    /**
-     * 최소 조회수 (선택)
-     * 
-     * 조회수가 이 값 이상인 뉴스만 검색
-     * 예시: 1000 (인기 뉴스만)
-     */
+
+    @Schema(description = "최소 조회수", example = "1000")
     @Min(value = 0, message = "최소 조회수는 0 이상이어야 합니다.")
     private Integer minViewCount;
-    
-    /**
-     * 최소 감정 점수 (선택)
-     * 
-     * 감정 점수가 이 값 이상인 뉴스만 검색
-     * 예시: 0.5 (긍정적인 뉴스만)
-     */
+
+    @Schema(description = "최소 감정 점수 (-1.0 ~ 1.0)", example = "0.5")
     private BigDecimal minSentimentScore;
-    
-    /**
-     * 최대 감정 점수 (선택)
-     * 
-     * 감정 점수가 이 값 이하인 뉴스만 검색
-     * 예시: -0.5 (부정적인 뉴스만)
-     */
+
+    @Schema(description = "최대 감정 점수 (-1.0 ~ 1.0)", example = "-0.5")
     private BigDecimal maxSentimentScore;
-    
-    /**
-     * 시작 날짜 (선택)
-     * 
-     * 이 날짜 이후 발행된 뉴스만 검색
-     * 예시: LocalDateTime.now().minusDays(7) (최근 7일)
-     */
+
+    @Schema(description = "시작 날짜", example = "2026-03-23T00:00:00")
     private LocalDateTime startDate;
-    
-    /**
-     * 종료 날짜 (선택)
-     * 
-     * 이 날짜 이전 발행된 뉴스만 검색
-     */
+
+    @Schema(description = "종료 날짜", example = "2026-03-30T23:59:59")
     private LocalDateTime endDate;
-    
-    /**
-     * 인기 뉴스 여부 (선택)
-     * 
-     * true: 조회수 1000 이상인 뉴스만
-     * false: 조회수 1000 미만인 뉴스만
-     * null: 모든 뉴스
-     */
+
+    @Schema(
+            description = "인기 뉴스 여부 (true: 조회수 1000+, false: 1000 미만, null: 전체)",
+            example = "true"
+    )
     private Boolean isHighView;
 
-    /**
-     * 종목 코드 (선택)
-     *
-     * 특정 종목이 언급된 뉴스만 검색
-     * news_stocks 테이블을 JOIN하여 필터링
-     * 예시: "005930" (삼성전자)
-     */
+    @Schema(description = "종목 코드 (해당 종목이 언급된 뉴스만)", example = "005930")
     private String stockCode;
 
     // ========== 페이징 파라미터 ==========
-    
-    /**
-     * 페이지 번호 (0부터 시작)
-     * 
-     * 기본값: 0 (첫 페이지)
-     */
+
+    @Schema(description = "페이지 번호 (0부터 시작)", example = "0")
     @Min(value = 0, message = "페이지 번호는 0 이상이어야 합니다.")
     @Builder.Default
     private Integer page = 0;
-    
-    /**
-     * 페이지 크기 (한 페이지당 항목 수)
-     * 
-     * 기본값: 20
-     */
+
+    @Schema(description = "페이지 크기", example = "20")
     @Min(value = 1, message = "페이지 크기는 1 이상이어야 합니다.")
     @Builder.Default
     private Integer size = 20;
-    
-    /**
-     * 정렬 기준 (선택)
-     * 
-     * 예시:
-     * - "viewCount,desc" (조회수 내림차순)
-     * - "publishedAt,desc" (최신순)
-     * - "createdAt,asc" (오래된 순)
-     * 
-     * 기본값: "createdAt,desc" (최신 생성순)
-     */
+
+    @Schema(description = "정렬 기준 (예: viewCount,desc / publishedAt,desc)", example = "createdAt,desc")
     @Builder.Default
     private String sort = "createdAt,desc";
     

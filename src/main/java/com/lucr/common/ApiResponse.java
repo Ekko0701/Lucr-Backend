@@ -1,5 +1,6 @@
 package com.lucr.common;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -9,20 +10,27 @@ import java.time.LocalDateTime;
 
 /**
  * 공통 API 응답 래퍼 클래스
- * 
+ *
  * @author kimdongjoo
  * @since 2026-01-28
  */
+@Schema(description = "공통 API 응답 래퍼")
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class ApiResponse<T> {
 
+    @Schema(description = "요청 성공 여부", example = "true")
     private boolean success;
+
+    @Schema(description = "응답 메시지", example = "요청이 성공적으로 처리되었습니다.")
     private String message;
+
+    @Schema(description = "응답 데이터")
     private T data;
-    
+
+    @Schema(description = "응답 시각", example = "2026-03-30T12:34:56")
     @Builder.Default
     private LocalDateTime timestamp = LocalDateTime.now();
 

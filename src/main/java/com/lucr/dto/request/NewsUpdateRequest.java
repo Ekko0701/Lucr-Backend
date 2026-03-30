@@ -1,5 +1,6 @@
 package com.lucr.dto.request;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Size;
@@ -20,45 +21,26 @@ import java.math.BigDecimal;
  * @author Kim Dongjoo
  * @since 2026-01-28
  */
+@Schema(description = "뉴스 수정 요청 (null이 아닌 필드만 업데이트)")
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class NewsUpdateRequest {
-    
-    /**
-     * 뉴스 제목 (선택)
-     * 
-     * null이 아닐 경우에만 업데이트
-     */
+
+    @Schema(description = "뉴스 제목", example = "수정된 뉴스 제목")
     @Size(min = 5, max = 500, message = "뉴스 제목은 5자 이상 500자 이하여야 합니다.")
     private String title;
-    
-    /**
-     * 뉴스 본문 (선택)
-     * 
-     * null이 아닐 경우에만 업데이트
-     */
+
+    @Schema(description = "뉴스 본문", example = "수정된 뉴스 본문 내용...")
     @Size(min = 10, message = "뉴스 본문은 10자 이상이어야 합니다.")
     private String content;
-    
-    /**
-     * 뉴스 출처 (선택)
-     * 
-     * null이 아닐 경우에만 업데이트
-     */
+
+    @Schema(description = "뉴스 출처", example = "DAUM_FINANCE")
     @Size(max = 100, message = "뉴스 출처는 100자 이하여야 합니다.")
     private String source;
-    
-    /**
-     * 감정 분석 점수 (선택)
-     * 
-     * AI 분석 결과를 업데이트할 때 사용
-     * 
-     * Validation:
-     * - @DecimalMin: 최소값 -1.0 (매우 부정적)
-     * - @DecimalMax: 최대값 1.0 (매우 긍정적)
-     */
+
+    @Schema(description = "감정 분석 점수 (-1.0 ~ 1.0)", example = "0.75")
     @DecimalMin(value = "-1.0", message = "감정 점수는 -1.0 이상이어야 합니다.")
     @DecimalMax(value = "1.0", message = "감정 점수는 1.0 이하여야 합니다.")
     private BigDecimal sentimentScore;

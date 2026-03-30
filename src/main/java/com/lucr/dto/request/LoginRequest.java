@@ -1,5 +1,6 @@
 package com.lucr.dto.request;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
@@ -54,6 +55,7 @@ import lombok.NoArgsConstructor;
  * @since 2026-02-11
  * @see RegisterRequest
  */
+@Schema(description = "로그인 요청")
 @Getter
 @NoArgsConstructor   // Jackson 역직렬화용 기본 생성자
 @AllArgsConstructor  // 테스트에서 직접 생성용
@@ -66,6 +68,11 @@ public class LoginRequest {
      * <p>회원가입 시 등록한 이메일 주소입니다.
      * {@code UserRepository.findByEmail()}로 사용자를 조회하는 데 사용됩니다.</p>
      */
+    @Schema(
+            description = "이메일 주소",
+            example = "user@example.com",
+            requiredMode = Schema.RequiredMode.REQUIRED
+    )
     @NotBlank(message = "이메일은 필수입니다.")
     @Email(message = "올바른 이메일 형식이 아닙니다.")
     private String email;
@@ -76,6 +83,11 @@ public class LoginRequest {
      * <p>서버에서 {@code BCryptPasswordEncoder.matches(rawPassword, encodedPassword)}로
      * DB에 저장된 해시값과 비교합니다. 평문 비밀번호는 절대 저장되거나 로깅되지 않습니다.</p>
      */
+    @Schema(
+            description = "비밀번호",
+            example = "Password@123",
+            requiredMode = Schema.RequiredMode.REQUIRED
+    )
     @NotBlank(message = "비밀번호는 필수입니다.")
     private String password;
 }

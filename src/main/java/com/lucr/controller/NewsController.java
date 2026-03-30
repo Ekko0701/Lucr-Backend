@@ -1,6 +1,7 @@
 package com.lucr.controller;
 
 import static com.lucr.config.openapi.OpenApiConstants.FORBIDDEN_RESPONSE_REF;
+import static com.lucr.config.openapi.OpenApiConstants.INVALID_TYPE_RESPONSE_REF;
 import static com.lucr.config.openapi.OpenApiConstants.MISSING_PARAMETER_RESPONSE_REF;
 import static com.lucr.config.openapi.OpenApiConstants.UNAUTHORIZED_RESPONSE_REF;
 import static com.lucr.config.openapi.OpenApiConstants.VALIDATION_ERROR_RESPONSE_REF;
@@ -99,6 +100,7 @@ public class NewsController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = UNAUTHORIZED_RESPONSE_REF),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", ref = INVALID_TYPE_RESPONSE_REF),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                     responseCode = "404",
                     description = "뉴스를 찾을 수 없음 (E404002)",
@@ -159,7 +161,14 @@ public class NewsController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "수정 성공"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = UNAUTHORIZED_RESPONSE_REF),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", ref = FORBIDDEN_RESPONSE_REF),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", ref = VALIDATION_ERROR_RESPONSE_REF),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "요청 값 검증 실패 또는 뉴스 ID 타입 오류 (E400001, E400002)",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class)
+                    )
+            ),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                     responseCode = "404",
                     description = "뉴스를 찾을 수 없음 (E404002)",
@@ -193,6 +202,7 @@ public class NewsController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "삭제 성공"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", ref = UNAUTHORIZED_RESPONSE_REF),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", ref = FORBIDDEN_RESPONSE_REF),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", ref = INVALID_TYPE_RESPONSE_REF),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                     responseCode = "404",
                     description = "뉴스를 찾을 수 없음 (E404002)",

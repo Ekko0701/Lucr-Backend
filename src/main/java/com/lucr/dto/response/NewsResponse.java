@@ -1,6 +1,7 @@
 package com.lucr.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -21,6 +22,7 @@ import java.io.Serializable;
  * @author Kim Dongjoo
  * @since 2026-01-28
  */
+@Schema(description = "뉴스 목록 응답")
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
@@ -29,70 +31,27 @@ public class NewsResponse implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    /**
-     * 뉴스 ID
-     */
+    @Schema(description = "뉴스 ID", example = "550e8400-e29b-41d4-a716-446655440000")
     private UUID id;
-    
-    /**
-     * 뉴스 제목
-     */
+    @Schema(description = "뉴스 제목", example = "삼성전자 주가 급등, 반도체 호황 영향")
     private String title;
-    
-    /**
-     * 뉴스 본문 (요약본)
-     * 
-     * 목록 조회 시 전체 본문은 너무 길므로
-     * Service에서 앞 100자만 잘라서 전달
-     */
+    @Schema(description = "본문 요약 (최대 100자)", example = "삼성전자가 반도체 호황에 힘입어...")
     private String contentSummary;
-    
-    /**
-     * 뉴스 출처
-     */
+    @Schema(description = "뉴스 출처", example = "NAVER_FINANCE")
     private String source;
-    
-    /**
-     * 뉴스 URL
-     */
+    @Schema(description = "뉴스 URL", example = "https://news.example.com/article/123")
     private String url;
-    
-    /**
-     * 조회수
-     */
+    @Schema(description = "조회수", example = "1500")
     private Integer viewCount;
-    
-    /**
-     * 인기 뉴스 여부
-     * 
-     * true: 조회수 1000 이상
-     */
+    @Schema(description = "인기 뉴스 여부 (조회수 1000+)", example = "true")
     private Boolean isHighView;
-    
-    /**
-     * 감정 분석 점수
-     * 
-     * -1.0 (매우 부정) ~ 1.0 (매우 긍정)
-     * null: 아직 분석되지 않음
-     */
+    @Schema(description = "감정 분석 점수 (-1.0 ~ 1.0, null: 미분석)", example = "0.75")
     private BigDecimal sentimentScore;
-    
-    /**
-     * 감정 분석 레이블
-     * 
-     * sentimentScore를 한글로 변환한 값
-     * "분석 전", "매우 긍정적", "긍정적", "중립", "부정적", "매우 부정적"
-     */
+    @Schema(description = "감정 분석 레이블", example = "긍정적")
     private String sentimentLabel;
-    
-    /**
-     * 뉴스 발행 시간
-     */
+    @Schema(description = "뉴스 발행 시간", example = "2026-03-30T09:00:00")
     private LocalDateTime publishedAt;
-    
-    /**
-     * 생성 시간 (DB 저장 시간)
-     */
+    @Schema(description = "DB 저장 시간", example = "2026-03-30T09:05:00")
     private LocalDateTime createdAt;
     
     /**

@@ -1,5 +1,6 @@
 package com.lucr.dto.request;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -46,6 +47,7 @@ import lombok.NoArgsConstructor;
  * @author Ekko0701
  * @since 2026-02-11
  */
+@Schema(description = "토큰 갱신 요청")
 @Getter
 @NoArgsConstructor   // Jackson 역직렬화용 기본 생성자
 @AllArgsConstructor  // 테스트에서 직접 생성용
@@ -64,6 +66,11 @@ public class TokenRefreshRequest {
      *   <li>DB 검증 — 로그아웃으로 삭제된 토큰인지 확인 (JWT만으로는 무효화 불가)</li>
      * </ul>
      */
+    @Schema(
+            description = "리프레시 토큰 (JWT)",
+            example = "eyJhbGciOiJIUzI1NiJ9...",
+            requiredMode = Schema.RequiredMode.REQUIRED
+    )
     @NotBlank(message = "리프레시 토큰은 필수입니다.")
     private String refreshToken;
 }
