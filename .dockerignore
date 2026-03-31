@@ -1,0 +1,54 @@
+# ========================================
+# Lucr Backend - .dockerignore
+# Docker 빌드 컨텍스트에서 제외할 파일/디렉토리
+# ========================================
+
+# ========== Git ==========
+.git
+.gitignore
+.gitattributes
+
+# ========== Gradle 캐시 ==========
+.gradle
+
+# ========== 빌드 산출물 ==========
+build
+
+# ========== IDE ==========
+.idea
+*.iws
+*.iml
+*.ipr
+.vscode
+
+# ========== Docker ==========
+Dockerfile
+docker-compose*.yml
+
+# ========== CI/CD ==========
+.github
+
+# ========== 환경변수 / 시크릿 ==========
+.env
+.env.*
+application-secret.yml
+
+# ========== AI / 개발 도구 ==========
+.claude
+.cursor
+
+# ========== 문서 ==========
+docs
+HELP.md
+*.md
+
+# ========== OS ==========
+.DS_Store
+Thumbs.db
+
+# ========== 로그 / 임시 파일 ==========
+logs
+*.log
+*.tmp
+*.swp
+*.bak
